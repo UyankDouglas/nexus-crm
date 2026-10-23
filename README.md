@@ -18,7 +18,7 @@ Clientes, oportunidades, funil de vendas, tarefas, equipe e resultados em uma ú
 [Telas](#-telas) · [Destaques técnicos](#-destaques-técnicos) · [Como executar](#-como-executar) ·
 [Arquitetura](#-arquitetura) · [Testes](#-testes) · [Roadmap](#-roadmap)
 
-<img src="docs/screenshots/customers-list.png" alt="Carteira de clientes do NEXUS CRM" width="100%" />
+<img src="docs/screenshots/pipeline-board.png" alt="Funil de vendas em Kanban do NEXUS CRM" width="100%" />
 
 </div>
 
@@ -34,27 +34,43 @@ sistema executável ao fim de cada uma.
 Cada organização tem seus próprios usuários, dados e permissões. Um mesmo usuário pode participar
 de várias organizações, com um perfil diferente em cada uma.
 
-> **Status:** Fase 1 — Fundação ✅ · Fase 2 — Clientes e contatos ✅ · Próxima: Fase 3 —
-> Negociações e funil de vendas.
+> **Status:** Fase 1 — Fundação ✅ · Fase 2 — Clientes e contatos ✅ · Fase 3 — Negociações e
+> funil de vendas ✅ · Próxima: Fase 4 — Dashboard, tarefas e atividades.
 
 ## 📸 Telas
 
 <table>
   <tr>
+    <td width="50%"><img src="docs/screenshots/deal-detail.png" alt="Detalhe do negócio com histórico" /></td>
+    <td width="50%"><img src="docs/screenshots/deal-lost-dialog.png" alt="Registro do motivo da perda" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Detalhe do negócio: valor, previsão, responsável e histórico de etapas</sub></td>
+    <td align="center"><sub>Perdas exigem motivo; ganhos pedem confirmação</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/customers-list.png" alt="Carteira de clientes" /></td>
     <td width="50%"><img src="docs/screenshots/customer-detail.png" alt="Detalhe do cliente" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Carteira de clientes com busca, filtros e paginação na URL</sub></td>
+    <td align="center"><sub>Detalhe do cliente: negócios, contatos, pessoas vinculadas e histórico</sub></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="docs/screenshots/customer-form.png" alt="Edição de cliente em drawer" /></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Detalhe do cliente: dados, contatos, pessoas vinculadas e histórico</sub></td>
-    <td align="center"><sub>Cadastro e edição em drawer, com validação de CPF/CNPJ</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/dashboard-light.png" alt="Dashboard" /></td>
     <td width="50%"><img src="docs/screenshots/command-menu.png" alt="Busca global com Ctrl+K" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>Dashboard com indicadores calculados no banco</sub></td>
-    <td align="center"><sub>Busca global de clientes e módulos (<kbd>Ctrl</kbd> + <kbd>K</kbd>)</sub></td>
+    <td align="center"><sub>Cadastro e edição em drawer, com validação de CPF/CNPJ</sub></td>
+    <td align="center"><sub>Busca global de clientes, negócios e módulos (<kbd>Ctrl</kbd> + <kbd>K</kbd>)</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/dashboard-light.png" alt="Dashboard" /></td>
+    <td width="50%"><img src="docs/screenshots/dashboard-dark.png" alt="Dashboard no tema escuro" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Dashboard com indicadores comerciais calculados no banco</sub></td>
+    <td align="center"><sub>Tema escuro</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/login.png" alt="Tela de login" /></td>
@@ -66,17 +82,11 @@ de várias organizações, com um perfil diferente em cada uma.
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/settings.png" alt="Configurações da organização" /></td>
-    <td width="50%"><img src="docs/screenshots/dashboard-dark.png" alt="Dashboard no tema escuro" /></td>
+    <td width="50%" align="center"><img src="docs/screenshots/mobile-dashboard.png" alt="Dashboard no celular" width="48%" /></td>
   </tr>
   <tr>
     <td align="center"><sub>Configurações: organização, membros e perfis de acesso</sub></td>
-    <td align="center"><sub>Tema escuro</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><img src="docs/screenshots/mobile-dashboard.png" alt="Dashboard no celular" width="24%" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><sub>Layout responsivo</sub></td>
+    <td align="center"><sub>Layout responsivo</sub></td>
   </tr>
 </table>
 
@@ -95,24 +105,29 @@ de várias organizações, com um perfil diferente em cada uma.
 - **Integridade multi-tenant também no banco.** Responsável, empresa vinculada e contatos usam
   **chaves estrangeiras compostas** com `organization_id`, e _CHECK constraints_ reforçam regras de
   negócio — mesmo um bug na API não consegue ligar registros de organizações diferentes.
+- **Kanban com arrastar e soltar validado no servidor.** O quadro atualiza na hora (otimista) e
+  desfaz o movimento se a API recusar; a API confere funil, etapa, permissão de reabertura e motivo
+  da perda, grava o histórico e reposiciona o card com **índice fracionário** (um único `UPDATE`
+  por movimento). Funciona também pelo teclado, com anúncios para leitores de tela em português.
 - **Domínio brasileiro levado a sério**: validação de CPF e de **CNPJ alfanumérico** (formato
   vigente desde julho de 2026), telefones e UFs, com formatação automática.
 - **Senhas com Argon2id** (parâmetros OWASP) e resposta em tempo constante para e-mails
   inexistentes, evitando enumeração de usuários.
-- **151 testes automatizados**, incluindo 50 testes de integração contra PostgreSQL real que
-  verificam os critérios de aceite de segurança — e um pipeline de CI que roda tudo a cada push.
-- **Nenhum dado fictício na interface.** Indicadores que dependem de módulos futuros mostram de
-  onde virão os dados, em vez de números inventados.
+- **212 testes automatizados**, incluindo 66 testes de integração contra PostgreSQL real que
+  verificam os critérios de aceite de segurança e de negócio — e um pipeline de CI que roda tudo a
+  cada push.
+- **Nenhum dado fictício na interface.** Indicadores vêm de agregações no banco; os que dependem de
+  módulos futuros mostram de onde virão os dados, em vez de números inventados.
 
 ## 🧰 Stack
 
-| Camada         | Tecnologias                                                                                                                                     |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Frontend       | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, shadcn/ui (Radix), React Router 8, TanStack Query 5, React Hook Form, Zod 4, Recharts 3, Lucide |
-| Backend        | Node.js 24, NestJS 11, Prisma 7 (driver adapter `pg`), PostgreSQL 17, Swagger/OpenAPI, class-validator, Argon2, Helmet, Throttler               |
-| Compartilhado  | `@nexus/shared`: perfis, matriz de permissões, schemas Zod e tipos da API                                                                       |
-| Qualidade      | pnpm workspaces, ESLint 10, Prettier, Jest + Supertest (API), Vitest + Testing Library (web), GitHub Actions                                    |
-| Infraestrutura | Docker Compose (PostgreSQL)                                                                                                                     |
+| Camada         | Tecnologias                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frontend       | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, shadcn/ui (Radix), React Router 8, TanStack Query 5, React Hook Form, Zod 4, dnd-kit, Recharts 3, Lucide |
+| Backend        | Node.js 24, NestJS 11, Prisma 7 (driver adapter `pg`), PostgreSQL 17, Swagger/OpenAPI, class-validator, Argon2, Helmet, Throttler                        |
+| Compartilhado  | `@nexus/shared`: perfis, matriz de permissões, schemas Zod e tipos da API                                                                                |
+| Qualidade      | pnpm workspaces, ESLint 10, Prettier, Jest + Supertest (API), Vitest + Testing Library (web), GitHub Actions                                             |
+| Infraestrutura | Docker Compose (PostgreSQL)                                                                                                                              |
 
 As versões foram escolhidas após checagem de compatibilidade entre as bibliotecas — o motivo de
 cada escolha está em [docs/decisions.md](docs/decisions.md).
@@ -182,15 +197,37 @@ Criadas por `pnpm db:seed` — **dados fictícios, para uso exclusivamente local
 | `rafael.lima@horizonte.example`   | Vendedor — Horizonte Tecnologia (Demo)                                       |
 | `beatriz.alves@vertice.example`   | Administrador — Vértice Consultoria (Demo)                                   |
 
-A seed também cria **27 clientes fictícios** com contatos: 23 na Horizonte (distribuídos entre
-Juliana, Rafael e Carlos, com 4 ainda sem responsável) e 4 na Vértice. Entre como vendedor e como
-gestor para comparar as carteiras.
+A seed também cria **27 clientes fictícios** com contatos — 23 na Horizonte (distribuídos entre
+Juliana, Rafael e Carlos, com 4 ainda sem responsável) e 4 na Vértice — e **29 negócios** (25 e 4)
+espalhados pelas etapas do funil, com ganhos, perdas com motivo e histórico de movimentações. Entre
+como vendedor e como gestor para comparar as carteiras.
 
-A seed é idempotente — recria os clientes das organizações de demonstração a cada execução — e se
+A seed é idempotente — recria clientes e negócios das organizações de demonstração a cada
+execução — e se
 recusa a rodar com `NODE_ENV=production` (exceto com `DEMO_MODE=true`, para um ambiente público
 isolado de demonstração).
 
 ## 🧩 Funcionalidades
+
+### Fase 3 — Negociações e funil de vendas
+
+- **Funil padrão** criado com cada organização: Novo lead, Primeiro contato, Qualificação,
+  Proposta enviada, Negociação, Ganho e Perdido, cada etapa com probabilidade de fechamento.
+- **Negócios** com nome, cliente, valor potencial (em reais), previsão de fechamento, responsável,
+  etapa e observações; cadastro e edição em drawer, com o valor formatado ao sair do campo.
+- **Kanban com arrastar e soltar** entre etapas e dentro delas, com totais e contagem por coluna,
+  tempo na etapa, previsão vencida em destaque e menu "Mover para…" como alternativa ao arraste.
+- **Ganho e perda**: ganhar pede confirmação; perder exige motivo (com sugestões frequentes).
+  Negócios encerrados ficam bloqueados para edição; só gestores e administradores os reabrem.
+- **Histórico de movimentações** de cada negócio: etapas, status, motivo da perda, autor e data.
+- **Carteira**: vendedores veem e movimentam só os próprios negócios; gestores filtram o quadro por
+  responsável e distribuem negócios.
+- **Indicadores**: valor em andamento, ganhos, receita, perdidos e taxa de conversão no funil e no
+  Dashboard, calculados no banco dentro do escopo de cada perfil.
+- **Integração com clientes**: a página do cliente lista seus negócios e permite criar um já
+  vinculado; clientes com negócios não podem ser excluídos.
+- **Busca global** encontra negócios e oferece o atalho "Novo negócio"; links como
+  `/funil?negocio=<id>` abrem o negócio direto no drawer.
 
 ### Fase 2 — Clientes e contatos
 
@@ -225,7 +262,7 @@ isolado de demonstração).
 - **Dashboard** com dados reais do PostgreSQL (equipe por perfil, organização e membros).
 - **Configurações**: nome da organização (somente administradores), membros (administradores e
   gestores) e descrição dos perfis.
-- Módulos futuros (Funil, Tarefas e Relatórios) exibem o escopo planejado, sem simular operações.
+- Módulos futuros (Tarefas e Relatórios) exibem o escopo planejado, sem simular operações.
 - **Swagger** em `/api/docs` e **health check** em `/api/health`.
 
 ## 🏗 Arquitetura
@@ -262,9 +299,9 @@ sequenceDiagram
 ```
 
 - **Monorepositório** com pnpm workspaces: `apps/web`, `apps/api` e `packages/shared`.
-- **API modular** (`auth`, `organizations`, `customers`, `mail`, `health`), com regras de negócio
-  nos services e controllers finos. Todo acesso a clientes passa por um único filtro de escopo
-  (organização ativa + carteira do vendedor).
+- **API modular** (`auth`, `organizations`, `customers`, `deals`, `mail`, `health`), com regras de
+  negócio nos services e controllers finos. Todo acesso a clientes e negócios passa por um filtro
+  de escopo (organização ativa + carteira do vendedor).
 - **Frontend** separado em `services` (acesso à API), `features` (hooks e componentes por domínio),
   `pages`, `layouts` e `routes`.
 
@@ -282,14 +319,14 @@ nexus-crm/
 │   │   ├── src/
 │   │   │   ├── common/           # guards, decorators, filtros, segurança, utilitários
 │   │   │   ├── config/           # validação e acesso tipado ao ambiente
-│   │   │   ├── modules/          # auth, organizations, customers, mail, health
+│   │   │   ├── modules/          # auth, organizations, customers, deals, mail, health
 │   │   │   └── prisma/           # PrismaService
 │   │   └── test/                 # testes de integração
 │   └── web/                      # React + Vite
 │       └── src/
 │           ├── app/              # providers e tema
 │           ├── components/       # componentes compartilhados e ui/ (shadcn)
-│           ├── features/         # auth, customers, dashboard, organization (hooks + componentes)
+│           ├── features/         # auth, customers, deals, dashboard, organization
 │           ├── layouts/          # AuthLayout, AppLayout (sidebar, topbar)
 │           ├── lib/              # query client, navegação, formatação
 │           ├── pages/            # páginas por rota
@@ -306,12 +343,12 @@ nexus-crm/
 
 ## 🧪 Testes
 
-| Suíte                   | Ferramentas                   | Testes | Cobertura principal                                                    |
-| ----------------------- | ----------------------------- | -----: | ---------------------------------------------------------------------- |
-| `packages/shared`       | Vitest                        |     38 | RBAC, schemas, CPF/CNPJ (inclusive alfanumérico), telefones e tags     |
-| `apps/api` (unitários)  | Jest                          |     22 | CSRF, permissões, escopo de clientes, regras de login, validação, slug |
-| `apps/api` (integração) | Jest + Supertest + PostgreSQL |     50 | Critérios de aceite das Fases 1 e 2 (abaixo)                           |
-| `apps/web`              | Vitest + Testing Library      |     41 | Rotas protegidas, login, cliente HTTP, filtros na URL, campo de tags   |
+| Suíte                   | Ferramentas                   | Testes | Cobertura principal                                                |
+| ----------------------- | ----------------------------- | -----: | ------------------------------------------------------------------ |
+| `packages/shared`       | Vitest                        |     58 | RBAC, schemas, CPF/CNPJ, telefones, tags, valores em reais e datas |
+| `apps/api` (unitários)  | Jest                          |     31 | CSRF, permissões, escopo, login, validação, transições e posições  |
+| `apps/api` (integração) | Jest + Supertest + PostgreSQL |     66 | Critérios de aceite das Fases 1 a 3 (abaixo)                       |
+| `apps/web`              | Vitest + Testing Library      |     57 | Rotas, login, cliente HTTP, filtros, formulário de negócio, quadro |
 
 Critérios de aceite verificados pelos testes de integração:
 
@@ -325,6 +362,11 @@ Critérios de aceite verificados pelos testes de integração:
 - ✅ Só a gestão distribui clientes, e apenas para membros ativos da mesma organização.
 - ✅ Empresa vinculada, responsável e contatos não podem apontar para outra organização.
 - ✅ Busca, filtros, paginação, tags e totais respeitam o escopo de cada perfil.
+- ✅ Toda organização nasce com o funil padrão; negócios só usam clientes visíveis ao usuário.
+- ✅ Movimentações gravam histórico; perda sem motivo e etapa de outro funil são recusadas.
+- ✅ Só gestores e administradores reabrem ou movem negócios encerrados, que não podem ser editados.
+- ✅ A ordem dos cards é preservada; o quadro de uma organização nunca mostra negócios de outra.
+- ✅ Cliente com negócios não pode ser excluído.
 
 ```bash
 pnpm test               # unitários (shared, API e web)
@@ -382,8 +424,8 @@ Executados na raiz do repositório:
 | ---- | ---------------------------------------------------------------------- | ------------ |
 | 1    | Fundação: monorepo, auth, organizações, RBAC, layout, seed, testes, CI | ✅ Concluída |
 | 2    | Clientes e contatos: CRUD, busca, filtros, paginação, permissões       | ✅ Concluída |
-| 3    | Negociações: pipeline, etapas, Kanban com drag-and-drop, histórico     | ⏳ Próxima   |
-| 4    | Dashboard com indicadores reais, tarefas e atividades                  | Planejada    |
+| 3    | Negociações: pipeline, etapas, Kanban com drag-and-drop, histórico     | ✅ Concluída |
+| 4    | Dashboard com indicadores reais, tarefas e atividades                  | ⏳ Próxima   |
 | 5    | Administração (convites, permissões, pipelines), relatórios, auditoria | Planejada    |
 | 6    | Testes E2E (Playwright), revisão de segurança, deploy e documentação   | Planejada    |
 

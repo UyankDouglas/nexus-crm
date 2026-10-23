@@ -25,10 +25,11 @@ própria origem, então os cookies de sessão são _first-party_ e não há CORS
 | `auth`          | Cadastro, login, logout, sessão, troca de organização, CSRF, redefinição de senha |
 | `organizations` | Resumo, atualização e membros da organização ativa                                |
 | `customers`     | Clientes e contatos: listagem filtrada, CRUD, distribuição, tags e totais         |
+| `deals`         | Funis, etapas e negócios: quadro Kanban, movimentação com histórico e totais      |
 | `mail`          | Envio de e-mails (caixa de saída em arquivo durante o desenvolvimento)            |
 | `health`        | Verificação de disponibilidade da API e do banco                                  |
 
-Novos domínios (negócios, tarefas…) seguem o mesmo formato do módulo de clientes: `controller`
+Novos domínios (tarefas, atividades…) seguem o mesmo formato do módulo de clientes: `controller`
 fino, `service` com as regras, DTOs validados e acesso a dados sempre filtrado pelo escopo do
 contexto autenticado. IDs de rota são validados como UUID — malformados respondem 404 sem consultar
 o banco.
@@ -89,6 +90,35 @@ Todo acesso a clientes — listagem, detalhe, tags, totais, contatos, edição e
   `customers:assign`, e o novo responsável precisa ter vínculo **ativo** na organização.
 - Empresa vinculada precisa ser um cliente do tipo empresa **visível** ao usuário.
 
+### Negócios e funil de vendas
+
+Cada organização nasce com um **funil padrão** de sete etapas (Novo lead → Primeiro contato →
+Qualificação → Proposta enviada → Negociação → Ganho → Perdido). Cada etapa tem um _tipo_ (`OPEN`,
+`WON` ou `LOST`) e uma probabilidade; o tipo da etapa de destino define o status do negócio.
+
+- **Escopo**: `dealScope(auth)` segue a mesma regra de clientes — `deals:read-all` vê a
+  organização inteira; vendedores, apenas os negócios em que são responsáveis. Fora do escopo: 404.
+- **Movimentação** (`POST /deals/:id/move`) recebe a etapa de destino e, opcionalmente, o negócio
+  que fica logo acima (`afterDealId`). As regras ficam em uma função pura (`resolveTransition`),
+  coberta por testes unitários:
+  - a etapa precisa ser do mesmo funil do negócio;
+  - ir para uma etapa de perda exige motivo (3–500 caracteres);
+  - negócios encerrados só mudam de etapa — inclusive para reabrir — com `deals:reopen`;
+  - reordenar dentro da mesma etapa não altera status, datas nem histórico.
+- **Ordem dos cards**: `position` é um número fracionário. Inserir entre dois cards grava a média
+  das posições vizinhas, alterando uma única linha; quando o intervalo fica menor que `1e-6`, a
+  coluna é renumerada na mesma transação.
+- **Histórico**: cada mudança de etapa grava uma linha em `deal_stage_history` com os **nomes** das
+  etapas de origem e destino no momento da movimentação, status, motivo da perda e autor — o
+  histórico continua legível mesmo se as etapas forem renomeadas.
+- **Encerramento**: negócios ganhos ou perdidos ficam bloqueados para edição (409) até serem
+  reabertos. O quadro mostra os em andamento e os encerrados nos últimos 30 dias; a listagem
+  (`GET /deals`) e os totais consideram todos.
+- **Totais** (`GET /deals/stats`): quantidade e valor em andamento, ganhos (quantidade e receita),
+  perdidos e taxa de conversão (ganhos ÷ encerrados), sempre dentro do escopo do usuário.
+- Um cliente com negócios não pode ser excluído (409): os negócios devem ser excluídos ou
+  transferidos antes.
+
 ### RBAC
 
 A matriz de permissões vive em `packages/shared/src/permissions.ts` e é a mesma usada pela API
@@ -105,6 +135,13 @@ A matriz de permissões vive em `packages/shared/src/permissions.ts` e é a mesm
 | `customers:update`    |       ✓       |        ✓         | ✓ (própria carteira) |
 | `customers:assign`    |       ✓       |        ✓         |                      |
 | `customers:delete`    |       ✓       |        ✓         |                      |
+| `deals:read`          |       ✓       |        ✓         | ✓ (própria carteira) |
+| `deals:read-all`      |       ✓       |        ✓         |                      |
+| `deals:create`        |       ✓       |        ✓         |          ✓           |
+| `deals:update`        |       ✓       |        ✓         | ✓ (própria carteira) |
+| `deals:assign`        |       ✓       |        ✓         |                      |
+| `deals:reopen`        |       ✓       |        ✓         |                      |
+| `deals:delete`        |       ✓       |        ✓         |                      |
 
 ### Modelo de dados
 
@@ -117,6 +154,10 @@ users ─┬─< organization_members >─┬─ organizations
 organization_members ─< customers ─┘ (owner_id: responsável comercial)
 customers (empresa)  ─< customers    (pessoa física, company_id)
 customers            ─< contacts
+
+organizations ─< pipelines ─< pipeline_stages (kind, probability, position)
+pipeline_stages ─< deals >─ customers         (value, status, position, owner_id)
+deals ─< deal_stage_history                   (etapas de origem/destino, autor, motivo)
 ```
 
 - IDs **UUIDv7** (ordenáveis no tempo, bons para índices).
@@ -129,6 +170,12 @@ customers            ─< contacts
   `customers(organization_id, id)`.
 - **CHECK constraints** (migration própria, ignoradas pelo diff do Prisma): empresa vinculada só
   para pessoa física e nunca a si mesma; formato de CPF/CNPJ coerente com o tipo; UF e telefone.
+  Em negócios: valor não negativo, `closed_at` preenchido se e somente se o negócio estiver
+  encerrado, motivo da perda se e somente se perdido, probabilidade entre 0 e 100.
+- Negócios referenciam funil, etapa (`(organization_id, pipeline_id, stage_id)`), cliente e
+  responsável por **FKs compostas**: um negócio não aponta para a etapa de outro funil nem para o
+  cliente de outra organização. Valores monetários em `NUMERIC(14,2)`; previsão de fechamento em
+  `DATE` (sem fuso).
 - Índices por `(organization_id, …)` para nome, status, responsável, atualização e empresa; índice
   **GIN** nas tags (filtro com `@>`).
 
@@ -147,9 +194,16 @@ customers            ─< contacts
   descartado para que nenhum dado de outra organização permaneça na tela.
 - Um `401` em qualquer requisição marca o usuário como deslogado e as rotas protegidas
   redirecionam para o login, preservando o destino (com proteção contra _open redirect_).
-- Formulários com React Hook Form + Zod; os schemas (autenticação, clientes e contatos) vêm do
+- Formulários com React Hook Form + Zod; os schemas (autenticação, clientes, contatos e negócios) vêm do
   pacote compartilhado, com as mesmas mensagens e limites validados pela API.
 - Filtros da listagem de clientes vivem na **URL** (validados ao ler): links compartilháveis,
   botão "voltar" funcional e nenhum valor inválido repassado à API. A página anterior permanece na
   tela enquanto a próxima carrega (`keepPreviousData`).
+- **Kanban** com dnd-kit: o quadro mantém um estado local durante o arraste e, ao soltar, aplica a
+  mudança no cache de forma **otimista** (`setQueryData`), desfazendo-a se a API recusar. Ganhos e
+  perdas pedem confirmação (e motivo, no caso de perda) antes de gravar. Pelo teclado, a alça do
+  card inicia o arraste (Espaço/Enter), as setas movem entre posições e etapas e o leitor de tela
+  recebe anúncios em português; o menu de cada card oferece a mesma ação sem arrastar.
+- Detalhes e cadastro de negócios abrem em _drawers_ controlados pela URL (`?negocio=<id>`,
+  `?novo=1`): a busca global leva direto a um negócio e o "voltar" do navegador fecha o drawer.
 - Tema claro/escuro aplicado antes da renderização (script em `index.html`) para evitar _flash_.

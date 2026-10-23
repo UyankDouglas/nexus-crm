@@ -175,3 +175,90 @@ fantasia e e-mail, e `contains` em documento e telefone normalizados.
 **Consequências.** Links compartilháveis e "voltar" funcionam naturalmente. Para carteiras muito
 grandes, a busca pode evoluir para índices trigram (`pg_trgm`) e paginação por cursor sem mudar o
 contrato do frontend.
+
+---
+
+## ADR-011 — dnd-kit para o Kanban
+
+**Data:** 2026-10-23
+
+**Contexto.** O funil precisa de arrastar e soltar entre colunas e dentro delas, com React 19,
+acessível por teclado e leitor de tela.
+
+**Decisão.** `@dnd-kit/core` + `@dnd-kit/sortable`. O ponteiro arrasta o card inteiro (com
+distância mínima de 6 px, para não confundir com cliques); pelo teclado, uma alça focável inicia o
+arraste e as setas usam `sortableKeyboardCoordinates`. Os anúncios e instruções de acessibilidade
+foram traduzidos para o português, e cada card tem um menu "Mover para…" como alternativa ao
+arraste.
+
+**Consequências.** Bibliotecas baseadas em HTML5 drag-and-drop não oferecem teclado nem toque de
+forma consistente; o dnd-kit cobre os dois sem dependências nativas. O custo é controlar o estado
+intermediário do arraste no componente do quadro.
+
+---
+
+## ADR-012 — Posição dos cards por índice fracionário
+
+**Data:** 2026-10-23
+
+**Contexto.** Reordenar com posições inteiras exige atualizar todos os cards abaixo do ponto de
+inserção a cada movimento.
+
+**Decisão.** `deals.position` é `DOUBLE PRECISION`. O cliente informa apenas o negócio que fica
+acima (`afterDealId`, ou nada para o topo); a API calcula a média entre os vizinhos dentro de uma
+transação. Quando o intervalo fica menor que `1e-6`, a coluna é renumerada (0, 1, 2…) e o cálculo é
+refeito.
+
+**Consequências.** Um movimento comum altera uma linha. O cliente nunca envia posições numéricas,
+então não consegue corromper a ordenação; um `afterDealId` de outra etapa responde 400.
+
+---
+
+## ADR-013 — Encerramento, reabertura e histórico de negócios
+
+**Data:** 2026-10-23
+
+**Contexto.** Ganhos e perdas alimentam indicadores e relatórios; um vendedor não deveria alterar
+um resultado já registrado, e o histórico precisa sobreviver a mudanças nas etapas.
+
+**Decisão.** O status deriva do tipo da etapa de destino (`OPEN`, `WON`, `LOST`). Perder exige
+motivo; encerrados ficam bloqueados para edição e só voltam a andar com `deals:reopen` (gestores e
+administradores), que limpa `closed_at` e o motivo. Cada mudança de etapa grava os nomes das etapas
+e os status de origem e destino em `deal_stage_history`. CHECK constraints garantem a coerência
+entre status, `closed_at` e motivo da perda.
+
+**Consequências.** Indicadores de ganho e perda não mudam por engano; a reabertura fica registrada
+com autor e data. Renomear ou remover etapas (Fase 5) não apaga o passado.
+
+---
+
+## ADR-014 — Quadro com janela de encerrados e totais calculados no banco
+
+**Data:** 2026-10-23
+
+**Contexto.** As colunas Ganho e Perdido crescem indefinidamente e tornariam o quadro lento e
+poluído.
+
+**Decisão.** O quadro devolve os negócios em andamento e os encerrados nos últimos 30 dias
+(`BOARD_CLOSED_WINDOW_DAYS`), com contagem e soma por coluna calculadas sobre o que é exibido. A
+listagem paginada (`GET /deals`) e os indicadores (`GET /deals/stats`, agregados no PostgreSQL)
+consideram todos os negócios do escopo do usuário.
+
+**Consequências.** O quadro continua leve; o histórico completo segue acessível pela listagem e
+pelos indicadores do Dashboard. Funis com milhares de negócios abertos poderão exigir paginação por
+coluna.
+
+---
+
+## ADR-015 — Cliente com negócios não pode ser excluído
+
+**Data:** 2026-10-23
+
+**Contexto.** Excluir um cliente em cascata apagaria negócios e seu histórico, distorcendo receita
+e conversão.
+
+**Decisão.** A FK de `deals` para `customers` usa `NO ACTION`, e a API responde 409 informando
+quantos negócios o cliente tem. Os negócios precisam ser excluídos ou transferidos antes.
+
+**Consequências.** Nenhum resultado comercial some como efeito colateral. Quando houver arquivamento
+de clientes, ele será a alternativa recomendada à exclusão.
