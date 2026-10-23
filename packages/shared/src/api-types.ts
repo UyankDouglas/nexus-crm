@@ -1,3 +1,4 @@
+import type { BrazilianState, CustomerStatus, CustomerType } from './customers.js';
 import type { Permission } from './permissions.js';
 import type { MemberRole, MembershipStatus } from './roles.js';
 
@@ -84,6 +85,76 @@ export interface OrganizationMemberItem {
   status: MembershipStatus;
   joinedAt: string;
   lastLoginAt: string | null;
+}
+
+export interface PageMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface Paginated<T> {
+  data: T[];
+  meta: PageMeta;
+}
+
+export interface UserSummary {
+  id: string;
+  name: string;
+}
+
+export interface CustomerSummary {
+  id: string;
+  name: string;
+}
+
+export interface CustomerListItem {
+  id: string;
+  type: CustomerType;
+  name: string;
+  tradeName: string | null;
+  /** CPF ou CNPJ sem pontuação. */
+  document: string | null;
+  email: string | null;
+  /** Somente dígitos. */
+  phone: string | null;
+  city: string | null;
+  state: BrazilianState | null;
+  status: CustomerStatus;
+  tags: string[];
+  owner: UserSummary | null;
+  company: CustomerSummary | null;
+  contactsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContactItem {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  position: string | null;
+  isPrimary: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerDetail extends CustomerListItem {
+  website: string | null;
+  notes: string | null;
+  createdBy: UserSummary | null;
+  contacts: ContactItem[];
+  /** Pessoas físicas vinculadas a esta empresa (visíveis ao usuário). */
+  linkedPeople: CustomerSummary[];
+}
+
+export interface CustomerStats {
+  total: number;
+  byStatus: Record<CustomerStatus, number>;
+  unassigned: number;
 }
 
 export interface HealthResponse {
