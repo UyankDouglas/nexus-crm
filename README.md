@@ -1,84 +1,102 @@
+<div align="center">
+
+<img src="apps/web/public/favicon.svg" alt="Logo do NEXUS CRM" width="72" height="72" />
+
 # NEXUS CRM
 
-SaaS de gestão comercial **multi-tenant** para pequenas e médias empresas: clientes, oportunidades,
-funil de vendas, tarefas, equipe e resultados em uma única plataforma.
+**SaaS de gestão comercial multi-tenant para pequenas e médias empresas.**<br />
+Clientes, oportunidades, funil de vendas, tarefas, equipe e resultados em uma única plataforma.
 
-Projeto de portfólio Full Stack desenvolvido de forma incremental, com frontend, API, banco de
-dados, autenticação segura, controle de acesso por perfil e testes automatizados.
+[![CI](https://github.com/UyankDouglas/nexus-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/UyankDouglas/nexus-crm/actions/workflows/ci.yml)
+![Node.js](https://img.shields.io/badge/Node.js-24-339933?logo=nodedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=0F172A)
+![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white)
 
-> **Status:** Fase 1 — Fundação ✅ concluída. Veja o [roadmap](#roadmap).
+[Telas](#-telas) · [Destaques técnicos](#-destaques-técnicos) · [Como executar](#-como-executar) ·
+[Arquitetura](#-arquitetura) · [Testes](#-testes) · [Roadmap](#-roadmap)
+
+<img src="docs/screenshots/dashboard-light.png" alt="Dashboard do NEXUS CRM" width="100%" />
+
+</div>
 
 ---
 
-## Sumário
+## Sobre o projeto
 
-- [Funcionalidades da Fase 1](#funcionalidades-da-fase-1)
-- [Stack](#stack)
-- [Arquitetura](#arquitetura)
-- [Como executar](#como-executar)
-- [Contas de demonstração](#contas-de-demonstração)
-- [Scripts](#scripts)
-- [Testes](#testes)
-- [Segurança](#segurança)
-- [Variáveis de ambiente](#variáveis-de-ambiente)
-- [Estrutura de pastas](#estrutura-de-pastas)
-- [Roadmap](#roadmap)
+O NEXUS CRM é um projeto de portfólio **Full Stack** construído como um produto real: frontend,
+API, banco de dados, autenticação segura, controle de acesso por perfil, isolamento entre
+organizações e testes automatizados — desenvolvido de forma incremental, em seis fases, mantendo o
+sistema executável ao fim de cada uma.
 
-## Funcionalidades da Fase 1
+Cada organização tem seus próprios usuários, dados e permissões. Um mesmo usuário pode participar
+de várias organizações, com um perfil diferente em cada uma.
 
-- **Cadastro inicial** de organização + administrador (transação única).
-- **Login, logout e sessão** server-side em cookie `HttpOnly` com expiração e revogação.
-- **Recuperação e redefinição de senha** com token de uso único (em desenvolvimento, o e-mail é
-  gravado em arquivo — veja [E-mails em desenvolvimento](#e-mails-em-desenvolvimento)).
-- **Múltiplas organizações por usuário**, com tela de seleção e troca de organização ativa.
-- **RBAC** com três perfis — Administrador, Gestor Comercial e Vendedor — validado na API.
-- **Isolamento multi-tenant**: toda operação usa a organização ativa da sessão e exige vínculo
-  ativo do usuário com ela.
-- **Layout definitivo**: sidebar recolhível, topbar com busca (`Ctrl+K`), notificações, menu do
-  usuário, tema claro/escuro, layout responsivo, skeletons, toasts e estados vazios.
-- **Dashboard** com dados reais do PostgreSQL (equipe por perfil, organização, membros) e a grade
-  de indicadores comerciais que será alimentada pelos próximos módulos — sem números fictícios.
-- **Configurações**: edição do nome da organização (somente administradores), lista de membros
-  (administradores e gestores) e descrição dos perfis.
-- Módulos futuros (Clientes, Funil, Tarefas, Relatórios) exibem o escopo planejado, sem simular
-  operações.
-- **Swagger** em `/api/docs`, **health check** em `/api/health`.
+> **Status:** Fase 1 — Fundação ✅ concluída · Próxima: Fase 2 — Clientes e contatos.
 
-## Stack
+## 📸 Telas
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/login.png" alt="Tela de login" /></td>
+    <td width="50%"><img src="docs/screenshots/dashboard-dark.png" alt="Dashboard no tema escuro" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Login com sessão segura em cookie HttpOnly</sub></td>
+    <td align="center"><sub>Dashboard no tema escuro</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/select-organization.png" alt="Seleção de organização" /></td>
+    <td width="50%"><img src="docs/screenshots/settings.png" alt="Configurações da organização" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Usuário com mais de uma organização escolhe onde trabalhar</sub></td>
+    <td align="center"><sub>Configurações: organização, membros e perfis de acesso</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/command-menu.png" alt="Busca global com Ctrl+K" /></td>
+    <td width="50%" align="center"><img src="docs/screenshots/mobile-dashboard.png" alt="Dashboard no celular" width="45%" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Busca global (<kbd>Ctrl</kbd> + <kbd>K</kbd>)</sub></td>
+    <td align="center"><sub>Layout responsivo</sub></td>
+  </tr>
+</table>
+
+## ✨ Destaques técnicos
+
+- **Autenticação de verdade, sem token no `localStorage`.** Sessão server-side em cookie
+  `HttpOnly` (`SameSite=Lax`, `Secure` e prefixo `__Host-` em produção). O banco guarda só o hash
+  SHA-256 do token, então logout, suspensão de acesso e troca de senha têm efeito imediato.
+- **Proteção CSRF** no padrão _signed double-submit cookie_ (HMAC) em todas as requisições de
+  escrita — inclusive login —, verificação de `Origin` e **rate limiting** nos endpoints sensíveis.
+- **Isolamento multi-tenant por construção.** O `organizationId` nunca vem do cliente: as rotas
+  operam sobre a organização ativa da sessão, e o vínculo do usuário é revalidado a cada requisição.
+- **RBAC na API**, com a mesma matriz de permissões compartilhada com o frontend (que só a usa
+  para esconder ações).
+- **Senhas com Argon2id** (parâmetros OWASP) e resposta em tempo constante para e-mails
+  inexistentes, evitando enumeração de usuários.
+- **82 testes automatizados**, incluindo 26 testes de integração contra PostgreSQL real que
+  verificam os critérios de aceite de segurança — e um pipeline de CI que roda tudo a cada push.
+- **Nenhum dado fictício na interface.** Indicadores que dependem de módulos futuros mostram de
+  onde virão os dados, em vez de números inventados.
+
+## 🧰 Stack
 
 | Camada         | Tecnologias                                                                                                                                     |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Frontend       | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, shadcn/ui (Radix), React Router 8, TanStack Query 5, React Hook Form, Zod 4, Recharts 3, Lucide |
-| Backend        | Node.js 24, NestJS 11, Prisma 7 (driver adapter `pg`), PostgreSQL 17, Swagger, class-validator, Argon2, Helmet, Throttler                       |
+| Backend        | Node.js 24, NestJS 11, Prisma 7 (driver adapter `pg`), PostgreSQL 17, Swagger/OpenAPI, class-validator, Argon2, Helmet, Throttler               |
 | Compartilhado  | `@nexus/shared`: perfis, matriz de permissões, schemas Zod e tipos da API                                                                       |
 | Qualidade      | pnpm workspaces, ESLint 10, Prettier, Jest + Supertest (API), Vitest + Testing Library (web), GitHub Actions                                    |
 | Infraestrutura | Docker Compose (PostgreSQL)                                                                                                                     |
 
-As versões foram escolhidas após checagem de compatibilidade — o motivo de cada escolha está em
-[docs/decisions.md](docs/decisions.md).
+As versões foram escolhidas após checagem de compatibilidade entre as bibliotecas — o motivo de
+cada escolha está em [docs/decisions.md](docs/decisions.md).
 
-## Arquitetura
-
-```
-┌──────────────────────┐   /api (proxy Vite em dev)   ┌───────────────────────────┐      ┌──────────────┐
-│  apps/web (React)    │ ───────────────────────────▶ │  apps/api (NestJS)        │ ───▶ │  PostgreSQL  │
-│  TanStack Query      │   cookie HttpOnly + CSRF     │  Guards: Throttle → CSRF  │      │  (Prisma 7)  │
-│  React Router        │ ◀─────────────────────────── │  → Auth → Permissões      │      └──────────────┘
-└──────────────────────┘                              └───────────────────────────┘
-            ▲                                                       ▲
-            └──────────────── packages/shared (tipos, RBAC, Zod) ───┘
-```
-
-- **Monorepositório** com pnpm workspaces: `apps/web`, `apps/api` e `packages/shared`.
-- **API modular** (`auth`, `organizations`, `mail`, `health`), com regras de negócio nos services
-  e controllers finos. Guards globais aplicam, nesta ordem: limite de requisições, CSRF,
-  autenticação e permissões.
-- **Frontend** separado em `services` (camada de acesso à API), `features` (hooks e componentes
-  por domínio), `pages`, `layouts` e `routes`.
-
-Detalhes em [docs/architecture.md](docs/architecture.md).
-
-## Como executar
+## 🚀 Como executar
 
 ### Pré-requisitos
 
@@ -95,8 +113,8 @@ pnpm install
 # 2. Variáveis de ambiente
 cp .env.example .env
 cp apps/api/.env.example apps/api/.env
-#   Em apps/api/.env, defina um CSRF_SECRET aleatório:
-#   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+#    Em apps/api/.env, defina um CSRF_SECRET aleatório:
+#    node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
 # 3. Banco de dados (PostgreSQL em Docker; cria também o banco de testes)
 pnpm db:up
@@ -110,21 +128,27 @@ pnpm dev
 ```
 
 Acesse **http://localhost:5173** e entre com uma das [contas de demonstração](#contas-de-demonstração).
-A documentação da API fica em **http://localhost:3333/api/docs**.
+A documentação interativa da API (Swagger) fica em **http://localhost:3333/api/docs**.
 
-### Sem Docker
+<details>
+<summary><strong>Sem Docker</strong></summary>
 
 Instale o PostgreSQL 17, crie os bancos `nexus_crm` e `nexus_crm_test` e ajuste `DATABASE_URL` e
 `DATABASE_URL_TEST` em `apps/api/.env`. Os demais passos são iguais (pule o `pnpm db:up`).
 
-### E-mails em desenvolvimento
+</details>
+
+<details>
+<summary><strong>E-mails em desenvolvimento</strong></summary>
 
 Ainda não há provedor SMTP (previsto para uma fase futura). Em desenvolvimento, os e-mails — como
 o de redefinição de senha — são gravados como arquivos `.eml` em `apps/api/.mail-outbox/` (fora do
 Git). Abra o arquivo mais recente para copiar o link de redefinição. O conteúdo nunca é escrito nos
-logs.
+logs, pois contém tokens.
 
-## Contas de demonstração
+</details>
+
+### Contas de demonstração
 
 Criadas por `pnpm db:seed` — **dados fictícios, para uso exclusivamente local** (domínio reservado
 `.example`). A senha de todas as contas é o valor de `SEED_DEMO_PASSWORD` em `apps/api/.env`.
@@ -140,75 +164,68 @@ Criadas por `pnpm db:seed` — **dados fictícios, para uso exclusivamente local
 A seed é idempotente e se recusa a rodar com `NODE_ENV=production` (exceto com `DEMO_MODE=true`,
 para um ambiente público isolado de demonstração).
 
-## Scripts
+## 🧩 Funcionalidades (Fase 1)
 
-Executados na raiz do repositório:
+- **Cadastro inicial** de organização + administrador (em uma única transação).
+- **Login, logout e sessão** com expiração e revogação.
+- **Recuperação e redefinição de senha** com token de uso único; a redefinição encerra todas as
+  sessões abertas.
+- **Múltiplas organizações por usuário**, com tela de seleção e troca de organização ativa.
+- **Perfis de acesso**: Administrador, Gestor Comercial e Vendedor.
+- **Layout definitivo**: sidebar recolhível, topbar com busca (<kbd>Ctrl</kbd> + <kbd>K</kbd>),
+  notificações, menu do usuário, tema claro/escuro, layout responsivo, skeletons, toasts e estados
+  vazios.
+- **Dashboard** com dados reais do PostgreSQL (equipe por perfil, organização e membros).
+- **Configurações**: nome da organização (somente administradores), membros (administradores e
+  gestores) e descrição dos perfis.
+- Módulos futuros (Clientes, Funil, Tarefas e Relatórios) exibem o escopo planejado, sem simular
+  operações.
+- **Swagger** em `/api/docs` e **health check** em `/api/health`.
 
-| Comando                        | Descrição                                                           |
-| ------------------------------ | ------------------------------------------------------------------- |
-| `pnpm dev`                     | Sobe pacote compartilhado (watch), API e Web                        |
-| `pnpm build`                   | Build de produção de todos os pacotes                               |
-| `pnpm typecheck`               | Verificação de tipos em todo o monorepositório                      |
-| `pnpm lint` / `lint:fix`       | ESLint                                                              |
-| `pnpm format` / `format:check` | Prettier                                                            |
-| `pnpm test`                    | Testes unitários (shared, API e web)                                |
-| `pnpm test:integration`        | Testes de integração da API contra PostgreSQL (`DATABASE_URL_TEST`) |
-| `pnpm db:up` / `db:down`       | Sobe/derruba o PostgreSQL no Docker                                 |
-| `pnpm db:migrate`              | Cria/aplica migrations em desenvolvimento (`prisma migrate dev`)    |
-| `pnpm db:deploy`               | Aplica migrations existentes (`prisma migrate deploy`)              |
-| `pnpm db:seed`                 | Popula os dados de demonstração                                     |
-| `pnpm db:reset`                | Recria o banco de desenvolvimento do zero                           |
+## 🏗 Arquitetura
 
-## Testes
+```mermaid
+flowchart LR
+    subgraph web["apps/web · React + Vite"]
+        UI["Páginas e layouts"] --> Q["TanStack Query"] --> C["apiClient<br/>cookies + CSRF"]
+    end
+    subgraph api["apps/api · NestJS"]
+        G["Guards<br/>Throttle → CSRF → Auth → Permissões"] --> CT["Controllers"] --> S["Services"]
+    end
+    C -- "/api (mesma origem)" --> G
+    S -- "Prisma 7" --> DB[("PostgreSQL")]
+    SH["packages/shared<br/>tipos · RBAC · Zod"] -.-> web
+    SH -.-> api
+```
 
-| Suíte                   | Ferramentas                   | Cobertura principal                                                            |
-| ----------------------- | ----------------------------- | ------------------------------------------------------------------------------ |
-| `packages/shared`       | Vitest                        | Matriz RBAC e schemas de validação                                             |
-| `apps/api` (unitários)  | Jest                          | CSRF, guard de permissões, regras de login, validação, slug                    |
-| `apps/api` (integração) | Jest + Supertest + PostgreSQL | Critérios de aceite da Fase 1 (abaixo)                                         |
-| `apps/web`              | Vitest + Testing Library      | Proteção de rotas, formulário de login, cliente HTTP (CSRF/erros), utilitários |
+```mermaid
+sequenceDiagram
+    autonumber
+    participant B as Navegador
+    participant A as API
+    participant D as PostgreSQL
+    B->>A: GET /api/auth/csrf
+    A-->>B: token CSRF (cookie legível + corpo)
+    B->>A: POST /api/auth/login + X-CSRF-Token
+    A->>D: busca usuário e verifica Argon2id
+    A->>D: cria sessão (hash SHA-256 do token)
+    A-->>B: Set-Cookie nexus_session (HttpOnly)
+    B->>A: GET /api/organizations/current (cookie)
+    A->>D: valida sessão + vínculo ATIVO com a organização
+    A-->>B: dados apenas da organização ativa
+```
 
-Critérios de aceite verificados pelos testes de integração:
+- **Monorepositório** com pnpm workspaces: `apps/web`, `apps/api` e `packages/shared`.
+- **API modular** (`auth`, `organizations`, `mail`, `health`), com regras de negócio nos services e
+  controllers finos.
+- **Frontend** separado em `services` (acesso à API), `features` (hooks e componentes por domínio),
+  `pages`, `layouts` e `routes`.
 
-- ✅ Um usuário consegue se cadastrar e entrar; os dados são persistidos no PostgreSQL.
-- ✅ Usuário não autenticado não acessa rotas protegidas (401).
-- ✅ Vendedor não acessa endpoints administrativos (403) e nada é alterado no banco.
-- ✅ Usuários de organizações distintas não consultam nem alteram dados uns dos outros.
-- ✅ O logout revoga a sessão: o mesmo cookie deixa de funcionar.
-- ✅ Vínculo suspenso perde o acesso imediatamente; CSRF, rate limit e redefinição de senha.
+Detalhes em [docs/architecture.md](docs/architecture.md) e decisões em
+[docs/decisions.md](docs/decisions.md).
 
-Os testes de integração usam um banco separado (`nexus_crm_test`), limpo antes de cada teste. O
-Docker Compose cria esse banco automaticamente. O pipeline de CI
-([.github/workflows/ci.yml](.github/workflows/ci.yml)) executa lint, formatação, typecheck,
-testes unitários, testes de integração com PostgreSQL e build.
-
-## Segurança
-
-- Senhas com **Argon2id** (parâmetros OWASP) e verificação em tempo constante para e-mails
-  inexistentes, evitando enumeração.
-- **Sessão server-side**: o cookie carrega só um token aleatório de 256 bits; o banco guarda apenas
-  o hash SHA-256. Cookies `HttpOnly`, `SameSite=Lax`, `Secure` e prefixo `__Host-` em produção.
-- **CSRF** no padrão _signed double-submit cookie_ (HMAC) em todas as requisições de escrita,
-  inclusive login, além de verificação de `Origin`.
-- **Rate limiting** geral e restrito nos endpoints de autenticação.
-- **Multi-tenant**: o `organizationId` nunca vem do cliente — rotas operam sobre a organização
-  ativa da sessão, cujo vínculo é revalidado a cada requisição.
-- Validação estrita de DTOs (`whitelist` + `forbidNonWhitelisted`), Helmet, CORS restrito,
-  `Cache-Control: no-store`, erros padronizados sem detalhes internos e logs sem corpo, cookies
-  ou tokens.
-- Segredos apenas em variáveis de ambiente, validadas na inicialização.
-
-## Variáveis de ambiente
-
-| Arquivo         | Uso                                                         |
-| --------------- | ----------------------------------------------------------- |
-| `.env`          | Docker Compose (usuário, senha, banco e porta do Postgres)  |
-| `apps/api/.env` | API: banco, segredo CSRF, sessão, rate limit, Swagger, seed |
-| `apps/web/.env` | Opcional: destino do proxy e URL da API                     |
-
-Todos possuem um `.env.example` documentado. Arquivos `.env` nunca são versionados.
-
-## Estrutura de pastas
+<details>
+<summary><strong>Estrutura de pastas</strong></summary>
 
 ```
 nexus-crm/
@@ -234,11 +251,81 @@ nexus-crm/
 │           └── types/
 ├── packages/shared/              # tipos, RBAC e schemas compartilhados
 ├── docker/                       # scripts de inicialização do Postgres
-├── docs/                         # arquitetura e decisões
+├── docs/                         # arquitetura, decisões e capturas de tela
 └── docker-compose.yml
 ```
 
-## Roadmap
+</details>
+
+## 🧪 Testes
+
+| Suíte                   | Ferramentas                   | Testes | Cobertura principal                                                            |
+| ----------------------- | ----------------------------- | -----: | ------------------------------------------------------------------------------ |
+| `packages/shared`       | Vitest                        |      9 | Matriz RBAC e schemas de validação                                             |
+| `apps/api` (unitários)  | Jest                          |     18 | CSRF, guard de permissões, regras de login, validação, slug                    |
+| `apps/api` (integração) | Jest + Supertest + PostgreSQL |     26 | Critérios de aceite da Fase 1 (abaixo)                                         |
+| `apps/web`              | Vitest + Testing Library      |     29 | Proteção de rotas, formulário de login, cliente HTTP (CSRF/erros), utilitários |
+
+Critérios de aceite verificados pelos testes de integração:
+
+- ✅ Um usuário consegue se cadastrar e entrar; os dados são persistidos no PostgreSQL.
+- ✅ Usuário não autenticado não acessa rotas protegidas (401).
+- ✅ Vendedor não acessa endpoints administrativos (403) e nada é alterado no banco.
+- ✅ Usuários de organizações distintas não consultam nem alteram dados uns dos outros.
+- ✅ O logout revoga a sessão: o mesmo cookie deixa de funcionar.
+- ✅ Vínculo suspenso perde o acesso imediatamente; CSRF, rate limit e redefinição de senha.
+
+```bash
+pnpm test               # unitários (shared, API e web)
+pnpm test:integration   # integração da API contra PostgreSQL (usa DATABASE_URL_TEST)
+```
+
+Os testes de integração usam um banco separado (`nexus_crm_test`), limpo antes de cada teste. O
+[pipeline de CI](.github/workflows/ci.yml) executa lint, formatação, typecheck, testes unitários,
+testes de integração com PostgreSQL e build.
+
+## 📜 Scripts
+
+Executados na raiz do repositório:
+
+| Comando                        | Descrição                                                           |
+| ------------------------------ | ------------------------------------------------------------------- |
+| `pnpm dev`                     | Sobe pacote compartilhado (watch), API e Web                        |
+| `pnpm build`                   | Build de produção de todos os pacotes                               |
+| `pnpm typecheck`               | Verificação de tipos em todo o monorepositório                      |
+| `pnpm lint` / `lint:fix`       | ESLint                                                              |
+| `pnpm format` / `format:check` | Prettier                                                            |
+| `pnpm test`                    | Testes unitários (shared, API e web)                                |
+| `pnpm test:integration`        | Testes de integração da API contra PostgreSQL (`DATABASE_URL_TEST`) |
+| `pnpm db:up` / `db:down`       | Sobe/derruba o PostgreSQL no Docker                                 |
+| `pnpm db:migrate`              | Cria/aplica migrations em desenvolvimento (`prisma migrate dev`)    |
+| `pnpm db:deploy`               | Aplica migrations existentes (`prisma migrate deploy`)              |
+| `pnpm db:seed`                 | Popula os dados de demonstração                                     |
+| `pnpm db:reset`                | Recria o banco de desenvolvimento do zero                           |
+
+## 🔐 Segurança
+
+- Senhas com **Argon2id** e verificação em tempo constante para e-mails inexistentes.
+- **Sessão server-side**: o cookie carrega só um token aleatório de 256 bits; o banco guarda apenas
+  o hash SHA-256.
+- **CSRF** (_signed double-submit cookie_) em todas as requisições de escrita, mais verificação de
+  `Origin`.
+- **Rate limiting** geral e restrito nos endpoints de autenticação.
+- **Multi-tenant**: rotas operam sobre a organização ativa da sessão; organizações inexistentes e
+  alheias recebem a mesma resposta, sem revelar quais existem.
+- Validação estrita de DTOs (`whitelist` + `forbidNonWhitelisted`), Helmet, CORS restrito,
+  `Cache-Control: no-store`, erros padronizados sem detalhes internos e logs sem corpo, cookies ou
+  tokens.
+- Segredos apenas em variáveis de ambiente, validadas na inicialização. Arquivos `.env` nunca são
+  versionados — cada um tem um `.env.example` documentado.
+
+| Arquivo         | Uso                                                         |
+| --------------- | ----------------------------------------------------------- |
+| `.env`          | Docker Compose (usuário, senha, banco e porta do Postgres)  |
+| `apps/api/.env` | API: banco, segredo CSRF, sessão, rate limit, Swagger, seed |
+| `apps/web/.env` | Opcional: destino do proxy e URL da API                     |
+
+## 🗺 Roadmap
 
 | Fase | Escopo                                                                 | Status       |
 | ---- | ---------------------------------------------------------------------- | ------------ |
@@ -249,6 +336,8 @@ nexus-crm/
 | 5    | Administração (convites, permissões, pipelines), relatórios, auditoria | Planejada    |
 | 6    | Testes E2E (Playwright), revisão de segurança, deploy e documentação   | Planejada    |
 
-## Licença
+## 👤 Autor
 
-Projeto de portfólio. Todos os dados de demonstração são fictícios.
+Desenvolvido por [**UyankDouglas**](https://github.com/UyankDouglas) como projeto de portfólio.
+
+Todos os dados de demonstração são fictícios. Este repositório ainda não define uma licença de uso.
