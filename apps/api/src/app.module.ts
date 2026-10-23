@@ -9,6 +9,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
 import { AppConfigService } from './config/app-config.service';
 import { AppConfigModule } from './config/config.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CustomersModule } from './modules/customers/customers.module';
 import { HealthModule } from './modules/health/health.module';
 import { MailModule } from './modules/mail/mail.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -39,6 +40,7 @@ const ONE_MINUTE_MS = 60_000;
     }),
     AuthModule,
     OrganizationsModule,
+    CustomersModule,
     HealthModule,
   ],
   providers: [

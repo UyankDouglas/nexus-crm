@@ -1,12 +1,41 @@
 import { applyDecorators } from '@nestjs/common';
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@nexus/shared';
+import {
+  CUSTOMER_LIMITS,
+  normalizeDocument,
+  normalizeTags,
+  onlyDigits,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from '@nexus/shared';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsUrl,
+  IsUUID,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
-const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
+type TransformParams = { value: unknown };
 
-const normalizeEmail = ({ value }: { value: unknown }) =>
+const trim = ({ value }: TransformParams) => (typeof value === 'string' ? value.trim() : value);
+
+const normalizeEmail = ({ value }: TransformParams) =>
   typeof value === 'string' ? value.trim().toLowerCase() : value;
+
+/** Texto vazio vira `null` — permite limpar campos opcionais em atualizações parciais. */
+const blankToNull = (transform: (value: string) => string) => {
+  return ({ value }: TransformParams) => {
+    if (typeof value !== 'string') return value;
+    const result = transform(value);
+    return result === '' ? null : result;
+  };
+};
 
 /** E-mail obrigatório, normalizado (sem espaços e em minúsculas). */
 export function NormalizedEmail() {
@@ -39,6 +68,85 @@ export function TrimmedText(label: string, min: number, max: number) {
     IsString({ message: `Informe ${label}.` }),
     MinLength(min, { message: `${capitalize(label)} deve ter pelo menos ${min} caracteres.` }),
     MaxLength(max, { message: `${capitalize(label)} deve ter no máximo ${max} caracteres.` }),
+  );
+}
+
+/** Texto opcional; vazio é gravado como `null`. */
+export function OptionalText(label: string, max: number) {
+  return applyDecorators(
+    Transform(blankToNull((value) => value.trim())),
+    IsOptional(),
+    IsString({ message: 'Valor inválido.' }),
+    MaxLength(max, { message: `${capitalize(label)} deve ter no máximo ${max} caracteres.` }),
+  );
+}
+
+export function OptionalEmail() {
+  return applyDecorators(
+    Transform(blankToNull((value) => value.trim().toLowerCase())),
+    IsOptional(),
+    IsEmail({}, { message: 'Informe um e-mail válido.' }),
+    MaxLength(CUSTOMER_LIMITS.email, { message: 'E-mail muito longo.' }),
+  );
+}
+
+/** Telefone opcional, armazenado somente com dígitos (DDD obrigatório). */
+export function OptionalPhone() {
+  return applyDecorators(
+    Transform(blankToNull(onlyDigits)),
+    IsOptional(),
+    Matches(/^\d{10,15}$/, { message: 'Informe o telefone com DDD.' }),
+  );
+}
+
+/** CPF/CNPJ sem pontuação. A validação dos dígitos depende do tipo do cliente (no service). */
+export function OptionalDocument() {
+  return applyDecorators(
+    Transform(blankToNull(normalizeDocument)),
+    IsOptional(),
+    IsString({ message: 'Documento inválido.' }),
+    MaxLength(14, { message: 'Documento inválido.' }),
+  );
+}
+
+export function OptionalUrl() {
+  return applyDecorators(
+    Transform(blankToNull((value) => value.trim())),
+    IsOptional(),
+    IsUrl(
+      { protocols: ['http', 'https'], require_protocol: true },
+      { message: 'Informe um endereço começando com http(s)://' },
+    ),
+    MaxLength(CUSTOMER_LIMITS.website, { message: 'Endereço muito longo.' }),
+  );
+}
+
+export function OptionalUuid(message = 'Valor inválido.') {
+  return applyDecorators(
+    Transform(blankToNull((value) => value.trim())),
+    IsOptional(),
+    IsUUID('all', { message }),
+  );
+}
+
+/** Lista de tags normalizada (sem duplicatas, sem espaços extras). */
+export function Tags() {
+  return applyDecorators(
+    Transform(({ value }: TransformParams) =>
+      Array.isArray(value) && value.every((tag) => typeof tag === 'string')
+        ? normalizeTags(value as string[])
+        : value,
+    ),
+    IsOptional(),
+    IsArray({ message: 'As tags devem ser uma lista.' }),
+    ArrayMaxSize(CUSTOMER_LIMITS.tags, {
+      message: `Use no máximo ${CUSTOMER_LIMITS.tags} tags.`,
+    }),
+    IsString({ each: true, message: 'Tag inválida.' }),
+    MaxLength(CUSTOMER_LIMITS.tagLength, {
+      each: true,
+      message: `Cada tag deve ter no máximo ${CUSTOMER_LIMITS.tagLength} caracteres.`,
+    }),
   );
 }
 
