@@ -43,6 +43,22 @@ enum CustomerStatus {
   @@map("customer_status")
 }
 
+enum StageKind {
+  OPEN
+  WON
+  LOST
+
+  @@map("stage_kind")
+}
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+
+  @@map("deal_status")
+}
+
 model User {
   id           String    @id @default(uuid(7)) @db.Uuid
   name         String    @db.VarChar(120)
@@ -57,6 +73,8 @@ model User {
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
   createdCustomers    Customer[]           @relation("CustomerCreatedBy")
+  createdDeals        Deal[]               @relation("DealCreatedBy")
+  dealHistoryChanges  DealStageHistory[]   @relation("DealHistoryChangedBy")
 
   @@map("users")
 }
@@ -72,6 +90,8 @@ model Organization {
   sessions  Session[]
   customers Customer[]
   contacts  Contact[]
+  pipelines Pipeline[]
+  deals     Deal[]
 
   @@map("organizations")
 }
@@ -90,6 +110,7 @@ model OrganizationMember {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   ownedCustomers Customer[]   @relation("CustomerOwner")
+  ownedDeals     Deal[]       @relation("DealOwner")
 
   @@unique([organizationId, userId])
   @@index([userId])
@@ -165,6 +186,7 @@ model Customer {
   ownerMembership OrganizationMember? @relation("CustomerOwner", fields: [organizationId, ownerId], references: [organizationId, userId], onDelete: NoAction)
   company         Customer?           @relation("CustomerCompany", fields: [organizationId, companyId], references: [organizationId, id], onDelete: NoAction)
   people          Customer[]          @relation("CustomerCompany")
+  deals           Deal[]
   createdBy       User?               @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   contacts        Contact[]
 
@@ -198,4 +220,106 @@ model Contact {
 
   @@index([organizationId, customerId])
   @@map("contacts")
+}
+
+/// Funil de vendas da organização. Toda organização nasce com um funil padrão.
+model Pipeline {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String   @db.VarChar(80)
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stages       PipelineStage[]
+  deals        Deal[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId])
+  @@map("pipelines")
+}
+
+/// Etapa do funil. Etapas de encerramento (WON/LOST) definem o status do negócio.
+model PipelineStage {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  pipelineId     String    @map("pipeline_id") @db.Uuid
+  name           String    @db.VarChar(60)
+  kind           StageKind @default(OPEN)
+  /// Probabilidade de fechamento (0–100), usada em previsões.
+  probability    Int       @default(0)
+  position       Int
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  pipeline Pipeline @relation(fields: [organizationId, pipelineId], references: [organizationId, id], onDelete: Cascade)
+  deals    Deal[]
+
+  @@unique([organizationId, pipelineId, id])
+  @@index([pipelineId, position])
+  @@map("pipeline_stages")
+}
+
+/// Negócio (oportunidade). A FK composta da etapa inclui organização e funil: o banco garante
+/// que a etapa pertence ao mesmo funil e à mesma organização do negócio.
+model Deal {
+  id                String     @id @default(uuid(7)) @db.Uuid
+  organizationId    String     @map("organization_id") @db.Uuid
+  pipelineId        String     @map("pipeline_id") @db.Uuid
+  stageId           String     @map("stage_id") @db.Uuid
+  customerId        String     @map("customer_id") @db.Uuid
+  ownerId           String?    @map("owner_id") @db.Uuid
+  title             String     @db.VarChar(160)
+  value             Decimal    @default(0) @db.Decimal(14, 2)
+  status            DealStatus @default(OPEN)
+  expectedCloseDate DateTime?  @map("expected_close_date") @db.Date
+  /// Ordem do card dentro da coluna (índice fracionário: inserções sem renumerar a coluna).
+  position          Float      @default(0)
+  notes             String?
+  lostReason        String?    @map("lost_reason") @db.VarChar(500)
+  closedAt          DateTime?  @map("closed_at") @db.Timestamptz(3)
+  stageChangedAt    DateTime   @default(now()) @map("stage_changed_at") @db.Timestamptz(3)
+  createdById       String?    @map("created_by_id") @db.Uuid
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pipeline        Pipeline            @relation(fields: [organizationId, pipelineId], references: [organizationId, id], onDelete: Cascade)
+  stage           PipelineStage       @relation(fields: [organizationId, pipelineId, stageId], references: [organizationId, pipelineId, id], onDelete: NoAction)
+  customer        Customer            @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: NoAction)
+  ownerMembership OrganizationMember? @relation("DealOwner", fields: [organizationId, ownerId], references: [organizationId, userId], onDelete: NoAction)
+  createdBy       User?               @relation("DealCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  history         DealStageHistory[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, stageId, position])
+  @@index([organizationId, pipelineId, status])
+  @@index([organizationId, ownerId])
+  @@index([organizationId, customerId])
+  @@index([organizationId, status, closedAt])
+  @@map("deals")
+}
+
+/// Histórico de movimentações. Os nomes das etapas são copiados no momento da mudança, para que
+/// o histórico continue legível mesmo se uma etapa for renomeada ou removida.
+model DealStageHistory {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  dealId         String      @map("deal_id") @db.Uuid
+  fromStageId    String?     @map("from_stage_id") @db.Uuid
+  toStageId      String      @map("to_stage_id") @db.Uuid
+  fromStageName  String?     @map("from_stage_name") @db.VarChar(60)
+  toStageName    String      @map("to_stage_name") @db.VarChar(60)
+  fromStatus     DealStatus? @map("from_status")
+  toStatus       DealStatus  @map("to_status")
+  lostReason     String?     @map("lost_reason") @db.VarChar(500)
+  changedById    String?     @map("changed_by_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  deal      Deal  @relation(fields: [organizationId, dealId], references: [organizationId, id], onDelete: Cascade)
+  changedBy User? @relation("DealHistoryChangedBy", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, dealId, createdAt])
+  @@map("deal_stage_history")
 }
