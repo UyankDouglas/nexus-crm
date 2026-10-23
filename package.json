@@ -1,0 +1,40 @@
+{
+  "name": "nexus-crm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NEXUS CRM — SaaS de gestão comercial multi-tenant",
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=22.12.0",
+    "pnpm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @nexus/shared build && pnpm --parallel --filter @nexus/shared --filter @nexus/api --filter @nexus/web dev",
+    "build": "pnpm --filter @nexus/shared build && pnpm --filter @nexus/api --filter @nexus/web build",
+    "typecheck": "pnpm --filter @nexus/shared build && pnpm -r typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm --filter @nexus/shared build && pnpm -r test",
+    "test:integration": "pnpm --filter @nexus/api test:integration",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @nexus/api prisma:migrate",
+    "db:deploy": "pnpm --filter @nexus/api prisma:deploy",
+    "db:seed": "pnpm --filter @nexus/api prisma:seed",
+    "db:reset": "pnpm --filter @nexus/api prisma:reset"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.13.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.0.0",
+    "prettier": "^3.9.10",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0"
+  }
+}

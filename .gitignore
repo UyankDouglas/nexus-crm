@@ -1,0 +1,42 @@
+# Dependências
+node_modules/
+.pnpm-store/
+
+# Builds
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Prisma Client gerado
+apps/api/src/generated/
+
+# Variáveis de ambiente (somente os exemplos são versionados)
+.env
+.env.*
+!.env.example
+
+# Caixa de saída de e-mails em desenvolvimento
+apps/api/.mail-outbox/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Logs e sistema
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editores
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Configuração local de ferramentas do Claude
+.claude/
