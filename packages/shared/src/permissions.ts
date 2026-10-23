@@ -15,6 +15,14 @@ export const PERMISSIONS = {
   'customers:update': ['ADMIN', 'MANAGER', 'SALES'],
   'customers:assign': ['ADMIN', 'MANAGER'],
   'customers:delete': ['ADMIN', 'MANAGER'],
+  // Negócios: mesma lógica de carteira; reabrir encerrados é decisão da gestão.
+  'deals:read': ['ADMIN', 'MANAGER', 'SALES'],
+  'deals:read-all': ['ADMIN', 'MANAGER'],
+  'deals:create': ['ADMIN', 'MANAGER', 'SALES'],
+  'deals:update': ['ADMIN', 'MANAGER', 'SALES'],
+  'deals:assign': ['ADMIN', 'MANAGER'],
+  'deals:reopen': ['ADMIN', 'MANAGER'],
+  'deals:delete': ['ADMIN', 'MANAGER'],
 } as const satisfies Record<string, readonly MemberRole[]>;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -29,6 +37,13 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'customers:update': 'Editar clientes e contatos',
   'customers:assign': 'Distribuir clientes entre vendedores',
   'customers:delete': 'Excluir clientes',
+  'deals:read': 'Visualizar negócios',
+  'deals:read-all': 'Visualizar negócios de toda a equipe',
+  'deals:create': 'Cadastrar negócios',
+  'deals:update': 'Editar e movimentar negócios',
+  'deals:assign': 'Distribuir negócios entre vendedores',
+  'deals:reopen': 'Reabrir negócios encerrados',
+  'deals:delete': 'Excluir negócios',
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];

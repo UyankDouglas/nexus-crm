@@ -18,13 +18,21 @@ describe('permissões RBAC', () => {
     expect(hasPermission('MANAGER', 'organization:update')).toBe(false);
   });
 
-  it('restringe o vendedor aos próprios clientes, sem distribuir ou excluir', () => {
+  it('restringe o vendedor à própria carteira, sem distribuir, reabrir ou excluir', () => {
     expect(permissionsForRole('SALES')).toEqual([
       'organization:read',
       'customers:read',
       'customers:create',
       'customers:update',
+      'deals:read',
+      'deals:create',
+      'deals:update',
     ]);
+  });
+
+  it('reserva a reabertura de negócios encerrados à gestão', () => {
+    expect(hasPermission('MANAGER', 'deals:reopen')).toBe(true);
+    expect(hasPermission('SALES', 'deals:reopen')).toBe(false);
   });
 
   it('possui rótulo em português para cada permissão', () => {

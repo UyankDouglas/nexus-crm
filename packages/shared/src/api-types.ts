@@ -1,4 +1,5 @@
 import type { BrazilianState, CustomerStatus, CustomerType } from './customers.js';
+import type { DealStatus, StageKind } from './deals.js';
 import type { Permission } from './permissions.js';
 import type { MemberRole, MembershipStatus } from './roles.js';
 
@@ -155,6 +156,85 @@ export interface CustomerStats {
   total: number;
   byStatus: Record<CustomerStatus, number>;
   unassigned: number;
+}
+
+export interface PipelineStageItem {
+  id: string;
+  name: string;
+  kind: StageKind;
+  probability: number;
+  position: number;
+}
+
+export interface PipelineItem {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  stages: PipelineStageItem[];
+}
+
+/** Card do Kanban e linha da listagem de negócios. */
+export interface DealCard {
+  id: string;
+  title: string;
+  /** Valor potencial em reais. */
+  value: number;
+  status: DealStatus;
+  /** AAAA-MM-DD */
+  expectedCloseDate: string | null;
+  stageId: string;
+  pipelineId: string;
+  customer: CustomerSummary;
+  owner: UserSummary | null;
+  stageChangedAt: string;
+  closedAt: string | null;
+  updatedAt: string;
+}
+
+export interface DealListItem extends DealCard {
+  stageName: string;
+}
+
+export interface BoardColumn {
+  stage: PipelineStageItem;
+  deals: DealCard[];
+  /** Totais dos negócios exibidos na coluna (respeitando filtros e escopo). */
+  count: number;
+  totalValue: number;
+}
+
+export interface DealBoard {
+  pipeline: PipelineItem;
+  columns: BoardColumn[];
+  /** Negócios encerrados há mais tempo que isso não aparecem no quadro. */
+  closedWindowDays: number;
+}
+
+export interface DealHistoryItem {
+  id: string;
+  fromStageName: string | null;
+  toStageName: string;
+  fromStatus: DealStatus | null;
+  toStatus: DealStatus;
+  lostReason: string | null;
+  changedBy: UserSummary | null;
+  createdAt: string;
+}
+
+export interface DealDetail extends DealListItem {
+  notes: string | null;
+  lostReason: string | null;
+  createdBy: UserSummary | null;
+  createdAt: string;
+  history: DealHistoryItem[];
+}
+
+export interface DealStats {
+  open: { count: number; value: number };
+  won: { count: number; value: number };
+  lost: { count: number };
+  /** Ganhos ÷ (ganhos + perdidos), de 0 a 1; `null` sem negócios encerrados. */
+  conversionRate: number | null;
 }
 
 export interface HealthResponse {
