@@ -1,0 +1,116 @@
+// NEXUS CRM — modelo de dados
+// Convenções: tabelas e colunas em snake_case, IDs UUIDv7 (ordenáveis por tempo),
+// datas com fuso horário (timestamptz) e toda entidade de negócio ligada a uma organização.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MemberRole {
+  ADMIN
+  MANAGER
+  SALES
+
+  @@map("member_role")
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+
+  @@map("membership_status")
+}
+
+model User {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  name         String    @db.VarChar(120)
+  /// Sempre armazenado em minúsculas (normalizado na camada de aplicação).
+  email        String    @unique @db.VarChar(254)
+  passwordHash String    @map("password_hash")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  memberships         OrganizationMember[]
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("users")
+}
+
+model Organization {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String   @db.VarChar(120)
+  slug      String   @unique @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  members  OrganizationMember[]
+  sessions Session[]
+
+  @@map("organizations")
+}
+
+/// Vínculo usuário ↔ organização. É a única fonte de autorização multi-tenant:
+/// um usuário só acessa dados de organizações em que possui vínculo ATIVO.
+model OrganizationMember {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  role           MemberRole
+  status         MembershipStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId, role])
+  @@map("organization_members")
+}
+
+/// Sessão server-side. O cookie HttpOnly carrega apenas um token aleatório;
+/// o banco guarda somente o hash SHA-256, permitindo expiração e revogação.
+model Session {
+  id                   String    @id @default(uuid(7)) @db.Uuid
+  tokenHash            String    @unique @map("token_hash") @db.Char(64)
+  userId               String    @map("user_id") @db.Uuid
+  activeOrganizationId String?   @map("active_organization_id") @db.Uuid
+  ipAddress            String?   @map("ip_address") @db.VarChar(64)
+  userAgent            String?   @map("user_agent") @db.VarChar(512)
+  expiresAt            DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt            DateTime? @map("revoked_at") @db.Timestamptz(3)
+  lastUsedAt           DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeOrganization Organization? @relation(fields: [activeOrganizationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([activeOrganizationId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  userId    String    @map("user_id") @db.Uuid
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
