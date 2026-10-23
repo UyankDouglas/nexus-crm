@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Nos testes, o ts-jest transpila tudo para CommonJS — inclusive o fonte de
+    // @nexus/shared (pacote ESM), que o Jest não carrega sem flags experimentais.
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "ignoreDeprecations": "6.0",
+    "isolatedModules": true,
+    "incremental": false,
+    "sourceMap": true
+  }
+}
