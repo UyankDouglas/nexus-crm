@@ -105,3 +105,73 @@ registrado — sem o conteúdo.
 
 **Consequências.** Trocar por um provedor SMTP/API exigirá apenas uma nova implementação do
 `MailService`.
+
+---
+
+## ADR-007 — Visibilidade de clientes por carteira (responsável)
+
+**Data:** 2026-10-23
+
+**Contexto.** Vendedores devem gerenciar apenas os clientes "autorizados"; gestores distribuem
+clientes e administradores veem tudo.
+
+**Decisão.** Cada cliente tem um responsável opcional (`owner_id`). Um único filtro de escopo
+(`customerScope`) é aplicado a todo acesso: perfis com `customers:read-all` veem a organização
+inteira; vendedores, apenas onde são responsáveis. Registros fora do escopo respondem **404**, igual
+a um ID inexistente. Atribuir outro responsável (ou nenhum) exige `customers:assign`.
+
+**Consequências.** Redistribuir um cliente remove imediatamente o acesso do vendedor anterior. Um
+compartilhamento mais granular (equipes, colaboradores) pode ser adicionado depois ampliando o
+mesmo filtro, sem espalhar regras pelos endpoints.
+
+---
+
+## ADR-008 — Chaves estrangeiras compostas e CHECK constraints
+
+**Data:** 2026-10-23
+
+**Contexto.** A validação na API impede referências entre organizações, mas um bug futuro poderia
+gravar, por exemplo, um contato apontando para o cliente de outra organização.
+
+**Decisão.** Referências entre registros de negócio usam FKs compostas com `organization_id`
+(responsável → `organization_members(organization_id, user_id)`; empresa vinculada e contatos →
+`customers(organization_id, id)`). Regras que o Prisma não modela ficam em uma migration de
+_CHECK constraints_ (tipo × documento, empresa vinculada só para pessoa física, formatos de UF e
+telefone). As FKs compostas usam `ON DELETE NO ACTION`, e o service desvincula pessoas antes de
+excluir uma empresa.
+
+**Consequências.** O banco rejeita dados cruzados mesmo fora da API (scripts, seeds, bugs). O
+`prisma migrate diff` ignora as CHECK constraints, então elas não geram divergência de schema.
+
+---
+
+## ADR-009 — CNPJ alfanumérico
+
+**Data:** 2026-10-23
+
+**Contexto.** Desde julho de 2026 a Receita Federal emite CNPJs alfanuméricos (IN RFB 2.229/2024):
+as 12 primeiras posições aceitam letras; os dígitos verificadores continuam numéricos.
+
+**Decisão.** Documentos são normalizados para maiúsculas sem pontuação (`VARCHAR(14)`). O cálculo
+dos dígitos verificadores usa o valor ASCII − 48 de cada caractere, o que mantém compatibilidade com
+os CNPJs numéricos. A implementação é testada com o exemplo oficial (`12.ABC.345/01DE-35`).
+
+**Consequências.** Busca, unicidade por organização e formatação funcionam igualmente para os dois
+formatos.
+
+---
+
+## ADR-010 — Filtros na URL e paginação por deslocamento
+
+**Data:** 2026-10-23
+
+**Contexto.** A listagem de clientes combina busca, quatro filtros, ordenação e paginação.
+
+**Decisão.** Os filtros vivem nos parâmetros da URL, validados ao ler (valores desconhecidos são
+descartados). A API pagina com `page`/`pageSize` (máximo de 100) e devolve `total` e `totalPages`;
+a ordenação inclui o `id` como desempate para páginas estáveis. A busca usa `ILIKE` em nome, nome
+fantasia e e-mail, e `contains` em documento e telefone normalizados.
+
+**Consequências.** Links compartilháveis e "voltar" funcionam naturalmente. Para carteiras muito
+grandes, a busca pode evoluir para índices trigram (`pg_trgm`) e paginação por cursor sem mudar o
+contrato do frontend.

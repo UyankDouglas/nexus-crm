@@ -24,12 +24,14 @@ própria origem, então os cookies de sessão são _first-party_ e não há CORS
 | `prisma`        | `PrismaService` (Prisma 7 com driver adapter `@prisma/adapter-pg`)                |
 | `auth`          | Cadastro, login, logout, sessão, troca de organização, CSRF, redefinição de senha |
 | `organizations` | Resumo, atualização e membros da organização ativa                                |
+| `customers`     | Clientes e contatos: listagem filtrada, CRUD, distribuição, tags e totais         |
 | `mail`          | Envio de e-mails (caixa de saída em arquivo durante o desenvolvimento)            |
 | `health`        | Verificação de disponibilidade da API e do banco                                  |
 
-Novos domínios (clientes, negócios, tarefas…) seguirão o mesmo formato: `controller` fino,
-`service` com as regras, DTOs validados e acesso a dados sempre filtrado por `organizationId`
-vindo do contexto autenticado.
+Novos domínios (negócios, tarefas…) seguem o mesmo formato do módulo de clientes: `controller`
+fino, `service` com as regras, DTOs validados e acesso a dados sempre filtrado pelo escopo do
+contexto autenticado. IDs de rota são validados como UUID — malformados respondem 404 sem consultar
+o banco.
 
 ### Pipeline de uma requisição
 
@@ -66,31 +68,69 @@ AllExceptionsFilter        → erro padronizado { statusCode, code, message, fie
   alheias recebem a mesma resposta (403), sem revelar quais existem.
 - O `ValidationPipe` rejeita campos não declarados — tentar enviar `organizationId` no corpo
   resulta em 400.
+- Atualizações e exclusões usam a chave única composta `(organization_id, id)` no `WHERE`.
+- O banco também garante o isolamento: referências entre registros usam **FKs compostas** com
+  `organization_id` (veja abaixo).
+
+### Clientes: escopo por carteira
+
+Todo acesso a clientes — listagem, detalhe, tags, totais, contatos, edição e exclusão — passa por
+`customerScope(auth)`:
+
+```ts
+{ organizationId: auth.organization.id }                      // administradores e gestores
+{ organizationId: auth.organization.id, ownerId: auth.user.id } // vendedores
+```
+
+- Registro fora do escopo responde **404** (mesma resposta de um ID inexistente).
+- O escopo é sempre combinado com outros filtros via `AND`, nunca por espalhamento de objeto —
+  um teste de integração pegou exatamente esse vazamento durante o desenvolvimento.
+- O vendedor cadastra clientes para si; distribuir (outro responsável ou "sem responsável") exige
+  `customers:assign`, e o novo responsável precisa ter vínculo **ativo** na organização.
+- Empresa vinculada precisa ser um cliente do tipo empresa **visível** ao usuário.
 
 ### RBAC
 
 A matriz de permissões vive em `packages/shared/src/permissions.ts` e é a mesma usada pela API
 (autorização) e pelo frontend (apenas para ocultar ações).
 
-| Permissão             | Administrador | Gestor Comercial | Vendedor |
-| --------------------- | :-----------: | :--------------: | :------: |
-| `organization:read`   |       ✓       |        ✓         |    ✓     |
-| `organization:update` |       ✓       |                  |          |
-| `members:read`        |       ✓       |        ✓         |          |
+| Permissão             | Administrador | Gestor Comercial |       Vendedor       |
+| --------------------- | :-----------: | :--------------: | :------------------: |
+| `organization:read`   |       ✓       |        ✓         |          ✓           |
+| `organization:update` |       ✓       |                  |                      |
+| `members:read`        |       ✓       |        ✓         |                      |
+| `customers:read`      |       ✓       |        ✓         | ✓ (própria carteira) |
+| `customers:read-all`  |       ✓       |        ✓         |                      |
+| `customers:create`    |       ✓       |        ✓         |          ✓           |
+| `customers:update`    |       ✓       |        ✓         | ✓ (própria carteira) |
+| `customers:assign`    |       ✓       |        ✓         |                      |
+| `customers:delete`    |       ✓       |        ✓         |                      |
 
-### Modelo de dados (Fase 1)
+### Modelo de dados
 
 ```
 users ─┬─< organization_members >─┬─ organizations
        │        (role, status)     │
-       ├─< sessions ───────────────┘ (active_organization_id, opcional)
-       └─< password_reset_tokens
+       ├─< sessions ───────────────┤ (active_organization_id, opcional)
+       └─< password_reset_tokens   │
+                                   │
+organization_members ─< customers ─┘ (owner_id: responsável comercial)
+customers (empresa)  ─< customers    (pessoa física, company_id)
+customers            ─< contacts
 ```
 
 - IDs **UUIDv7** (ordenáveis no tempo, bons para índices).
 - Datas `timestamptz(3)`; tabelas e colunas em `snake_case`.
 - Restrições: e-mail único, slug único, vínculo único por `(organization_id, user_id)`, hashes
   de token únicos; chaves estrangeiras com `ON DELETE CASCADE`/`SET NULL` conforme o caso.
+- **FKs compostas multi-tenant**: `customers(organization_id, owner_id)` →
+  `organization_members(organization_id, user_id)`, `customers(organization_id, company_id)` →
+  `customers(organization_id, id)` e `contacts(organization_id, customer_id)` →
+  `customers(organization_id, id)`.
+- **CHECK constraints** (migration própria, ignoradas pelo diff do Prisma): empresa vinculada só
+  para pessoa física e nunca a si mesma; formato de CPF/CNPJ coerente com o tipo; UF e telefone.
+- Índices por `(organization_id, …)` para nome, status, responsável, atualização e empresa; índice
+  **GIN** nas tags (filtro com `@>`).
 
 ## Frontend (apps/web)
 
@@ -107,5 +147,9 @@ users ─┬─< organization_members >─┬─ organizations
   descartado para que nenhum dado de outra organização permaneça na tela.
 - Um `401` em qualquer requisição marca o usuário como deslogado e as rotas protegidas
   redirecionam para o login, preservando o destino (com proteção contra _open redirect_).
-- Formulários com React Hook Form + Zod; os schemas de autenticação vêm do pacote compartilhado.
+- Formulários com React Hook Form + Zod; os schemas (autenticação, clientes e contatos) vêm do
+  pacote compartilhado, com as mesmas mensagens e limites validados pela API.
+- Filtros da listagem de clientes vivem na **URL** (validados ao ler): links compartilháveis,
+  botão "voltar" funcional e nenhum valor inválido repassado à API. A página anterior permanece na
+  tela enquanto a próxima carrega (`keepPreviousData`).
 - Tema claro/escuro aplicado antes da renderização (script em `index.html`) para evitar _flash_.
