@@ -18,6 +18,8 @@ import {
   type DemoCustomer,
   type DemoOwner,
 } from './demo-customers';
+import { HORIZONTE_DEALS, VERTICE_DEALS, type DemoDeal } from './demo-deals';
+import { createDefaultPipeline } from '../src/modules/deals/default-pipeline';
 
 interface DemoUser {
   key: Exclude<DemoOwner, null>;
@@ -127,13 +129,18 @@ async function main(): Promise<void> {
       }
     }
 
-    await seedCustomers(
-      prisma,
-      organizationIds.get('horizonte-demo')!,
-      HORIZONTE_CUSTOMERS,
-      userIds,
-    );
-    await seedCustomers(prisma, organizationIds.get('vertice-demo')!, VERTICE_CUSTOMERS, userIds);
+    const demoData = [
+      { slug: 'horizonte-demo', customers: HORIZONTE_CUSTOMERS, deals: HORIZONTE_DEALS },
+      { slug: 'vertice-demo', customers: VERTICE_CUSTOMERS, deals: VERTICE_DEALS },
+    ];
+    for (const demo of demoData) {
+      const organizationId = organizationIds.get(demo.slug)!;
+      // Negócios primeiro: eles referenciam clientes (FK sem cascata).
+      await prisma.deal.deleteMany({ where: { organizationId } });
+      const customerIds = await seedCustomers(prisma, organizationId, demo.customers, userIds);
+      const pipelineId = await ensureDefaultPipeline(prisma, organizationId);
+      await seedDeals(prisma, organizationId, pipelineId, demo.deals, customerIds, userIds);
+    }
 
     console.log('Seed de demonstração concluída:');
     console.table(
@@ -144,6 +151,9 @@ async function main(): Promise<void> {
     );
     console.log(
       `Clientes fictícios: ${HORIZONTE_CUSTOMERS.length} (Horizonte) e ${VERTICE_CUSTOMERS.length} (Vértice).`,
+    );
+    console.log(
+      `Negócios fictícios: ${HORIZONTE_DEALS.length} (Horizonte) e ${VERTICE_DEALS.length} (Vértice).`,
     );
     console.log('Senha das contas: valor de SEED_DEMO_PASSWORD no arquivo .env');
   } finally {
@@ -162,7 +172,7 @@ async function seedCustomers(
   organizationId: string,
   customers: DemoCustomer[],
   userIds: Map<string, string>,
-): Promise<void> {
+): Promise<Map<string, string>> {
   await prisma.customer.updateMany({ where: { organizationId }, data: { companyId: null } });
   await prisma.customer.deleteMany({ where: { organizationId } });
 
@@ -221,6 +231,100 @@ async function seedCustomers(
         })),
       });
     }
+  }
+  return idsByKey;
+}
+
+async function ensureDefaultPipeline(prisma: PrismaClient, organizationId: string) {
+  const existing = await prisma.pipeline.findFirst({
+    where: { organizationId, isDefault: true },
+    select: { id: true },
+  });
+  return (existing ?? (await createDefaultPipeline(prisma, organizationId))).id;
+}
+
+/**
+ * Recria os negócios de DEMONSTRAÇÃO com um histórico plausível: cada negócio percorre as
+ * etapas anteriores até a atual, com as datas distribuídas entre o cadastro e o fechamento.
+ */
+async function seedDeals(
+  prisma: PrismaClient,
+  organizationId: string,
+  pipelineId: string,
+  deals: DemoDeal[],
+  customerIds: Map<string, string>,
+  userIds: Map<string, string>,
+): Promise<void> {
+  const stages = await prisma.pipelineStage.findMany({
+    where: { pipelineId },
+    orderBy: { position: 'asc' },
+  });
+  const openStages = stages.filter((stage) => stage.kind === 'OPEN');
+  const positions = new Map<string, number>();
+  const now = Date.now();
+
+  for (const demo of deals) {
+    const stage = stages.find((item) => item.name === demo.stage);
+    if (!stage) throw new Error(`Etapa inexistente na seed: ${demo.stage}`);
+
+    // Caminho percorrido: abertas até a atual; encerrados passam por parte do funil antes.
+    const path =
+      stage.kind === 'OPEN'
+        ? openStages.filter((item) => item.position <= stage.position)
+        : [...openStages.slice(0, stage.kind === 'WON' ? 5 : 3), stage];
+
+    const createdAt = new Date(now - demo.createdDaysAgo * DAY_MS);
+    const lastChange =
+      demo.closedDaysAgo !== undefined ? now - demo.closedDaysAgo * DAY_MS : now - DAY_MS;
+    const step = path.length > 1 ? (lastChange - createdAt.getTime()) / (path.length - 1) : 0;
+    const changedAt = path.map((_, index) => new Date(createdAt.getTime() + step * index));
+    const ownerId = demo.owner ? userIds.get(demo.owner)! : null;
+    const position = positions.get(stage.id) ?? 0;
+    positions.set(stage.id, position + 1);
+
+    const deal = await prisma.deal.create({
+      data: {
+        organizationId,
+        pipelineId,
+        stageId: stage.id,
+        customerId: customerIds.get(demo.customer)!,
+        ownerId,
+        title: demo.title,
+        value: demo.value.toFixed(2),
+        status: stage.kind,
+        expectedCloseDate:
+          demo.expectedInDays !== undefined
+            ? new Date(
+                `${new Date(now + demo.expectedInDays * DAY_MS).toISOString().slice(0, 10)}T00:00:00.000Z`,
+              )
+            : null,
+        position,
+        notes: demo.notes ?? null,
+        lostReason: stage.kind === 'LOST' ? (demo.lostReason ?? 'Motivo não informado') : null,
+        closedAt: stage.kind === 'OPEN' ? null : changedAt.at(-1)!,
+        stageChangedAt: changedAt.at(-1)!,
+        createdById: ownerId ?? userIds.get('ana') ?? null,
+        createdAt,
+        updatedAt: changedAt.at(-1)!,
+      },
+      select: { id: true },
+    });
+
+    await prisma.dealStageHistory.createMany({
+      data: path.map((item, index) => ({
+        organizationId,
+        dealId: deal.id,
+        fromStageId: index > 0 ? path[index - 1]!.id : null,
+        fromStageName: index > 0 ? path[index - 1]!.name : null,
+        fromStatus: index > 0 ? ('OPEN' as const) : null,
+        toStageId: item.id,
+        toStageName: item.name,
+        toStatus: item.kind,
+        lostReason: item.kind === 'LOST' ? (demo.lostReason ?? null) : null,
+        changedById: ownerId ?? userIds.get('ana') ?? null,
+        createdAt: changedAt[index]!,
+      })),
+    });
   }
 }
 
