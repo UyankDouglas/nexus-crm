@@ -57,11 +57,16 @@ export function useUpdateCustomer(id: string) {
   });
 }
 
-export function useDeleteCustomer() {
+/**
+ * `onDeleted` roda no hook, antes da limpeza do cache: callbacks passados ao `mutate` se perdem
+ * quando a tela que pediu a exclusão é desmontada pela nova busca do registro excluído (404).
+ */
+export function useDeleteCustomer(onDeleted?: (id: string) => void) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => customerService.remove(id),
     onSuccess: (_data, id) => {
+      onDeleted?.(id);
       queryClient.removeQueries({ queryKey: queryKeys.customers.detail(id) });
       return queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
     },

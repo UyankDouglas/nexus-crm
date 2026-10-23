@@ -21,18 +21,15 @@ interface DeleteCustomerDialogProps {
 }
 
 export function DeleteCustomerDialog({ customer, onClose, onDeleted }: DeleteCustomerDialogProps) {
-  const remove = useDeleteCustomer();
+  const remove = useDeleteCustomer(() => {
+    toast.success(`${customer?.name ?? 'Cliente'} foi excluído.`);
+    onClose();
+    onDeleted?.();
+  });
 
   const confirm = () => {
     if (!customer) return;
-    remove.mutate(customer.id, {
-      onSuccess: () => {
-        toast.success(`${customer.name} foi excluído.`);
-        onClose();
-        onDeleted?.();
-      },
-      onError: (error) => toast.error(error.message),
-    });
+    remove.mutate(customer.id, { onError: (error) => toast.error(error.message) });
   };
 
   return (
