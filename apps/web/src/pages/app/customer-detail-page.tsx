@@ -44,6 +44,7 @@ import {
 } from '@/features/customers/components/customer-form-sheet';
 import { DeleteCustomerDialog } from '@/features/customers/components/delete-customer-dialog';
 import { useCustomer } from '@/features/customers/hooks';
+import { CustomerDealsCard } from '@/features/deals/components/customer-deals-card';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { customerPath, paths } from '@/lib/navigation';
@@ -218,6 +219,8 @@ function CustomerDetailView({ customer }: { customer: CustomerDetail }) {
               </dl>
             </CardContent>
           </Card>
+
+          <CustomerDealsCard customer={customer} />
 
           <ContactsCard customerId={customer.id} contacts={customer.contacts} />
 

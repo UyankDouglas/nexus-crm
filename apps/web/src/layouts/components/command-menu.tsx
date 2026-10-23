@@ -1,5 +1,5 @@
 import { formatDocument } from '@nexus/shared';
-import { Building2, LogOut, Moon, Plus, Search, Sun, UserRound } from 'lucide-react';
+import { Building2, Handshake, LogOut, Moon, Plus, Search, Sun, UserRound } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -18,8 +18,17 @@ import {
 import { useCurrentUser } from '@/features/auth/hooks';
 import { useSignOut } from '@/features/auth/use-sign-out';
 import { useCustomers } from '@/features/customers/hooks';
+import { useDeals } from '@/features/deals/hooks';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import { allNavigation, customerPath, NEW_CUSTOMER_PARAM, paths } from '@/lib/navigation';
+import { formatCurrency } from '@/lib/format';
+import {
+  allNavigation,
+  customerPath,
+  dealPath,
+  NEW_CUSTOMER_PARAM,
+  NEW_DEAL_PARAM,
+  paths,
+} from '@/lib/navigation';
 
 const MIN_SEARCH_LENGTH = 2;
 
@@ -36,7 +45,7 @@ function matchCommand(value: string, search: string, keywords: string[] = []): n
   return normalize([value, ...keywords].join(' ')).includes(query) ? 1 : 0;
 }
 
-/** Busca global (Ctrl/⌘ + K): clientes, navegação entre módulos e ações rápidas. */
+/** Busca global (Ctrl/⌘ + K): clientes, negócios, navegação entre módulos e ações rápidas. */
 export function CommandMenu() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -51,6 +60,11 @@ export function CommandMenu() {
     { enabled: searching },
   );
   const customerResults = searching ? (customers.data?.data ?? []) : [];
+  const deals = useDeals(
+    { search: term, page: 1, pageSize: 5, sort: 'recent' },
+    { enabled: searching },
+  );
+  const dealResults = searching ? (deals.data?.data ?? []) : [];
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -90,13 +104,13 @@ export function CommandMenu() {
           if (!next) setSearch('');
         }}
         title="Buscar"
-        description="Busque clientes, navegue pelos módulos ou execute uma ação."
+        description="Busque clientes e negócios, navegue pelos módulos ou execute uma ação."
       >
         <Command filter={matchCommand}>
           <CommandInput
             value={search}
             onValueChange={setSearch}
-            placeholder="Buscar clientes, módulos ou ações…"
+            placeholder="Buscar clientes, negócios, módulos ou ações…"
           />
           <CommandList>
             <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
@@ -114,6 +128,27 @@ export function CommandMenu() {
                       <span className="truncate">{customer.name}</span>
                       <CommandShortcut className="tracking-normal">
                         {customer.document ? formatDocument(customer.document) : customer.city}
+                      </CommandShortcut>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+                <CommandSeparator />
+              </>
+            )}
+            {dealResults.length > 0 && (
+              <>
+                <CommandGroup heading="Negócios">
+                  {dealResults.map((deal) => (
+                    <CommandItem
+                      key={deal.id}
+                      value={`negocio-${deal.id}`}
+                      keywords={[search]}
+                      onSelect={() => run(() => void navigate(dealPath(deal.id)))}
+                    >
+                      <Handshake />
+                      <span className="truncate">{deal.title}</span>
+                      <CommandShortcut className="tracking-normal whitespace-nowrap">
+                        {deal.stageName} · {formatCurrency(deal.value)}
                       </CommandShortcut>
                     </CommandItem>
                   ))}
@@ -144,6 +179,13 @@ export function CommandMenu() {
               >
                 <Plus />
                 <span>Novo cliente</span>
+              </CommandItem>
+              <CommandItem
+                value="novo negócio oportunidade cadastrar"
+                onSelect={() => run(() => void navigate(`${paths.pipeline}?${NEW_DEAL_PARAM}=1`))}
+              >
+                <Plus />
+                <span>Novo negócio</span>
               </CommandItem>
               <CommandItem
                 value="alternar tema claro escuro"

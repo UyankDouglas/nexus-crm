@@ -29,6 +29,14 @@ export function customerPath(id: string): string {
   return `${paths.customers}/${id}`;
 }
 
+/** Parâmetros de URL do funil: cadastro de negócio e negócio aberto na gaveta de detalhes. */
+export const NEW_DEAL_PARAM = 'novo';
+export const DEAL_PARAM = 'negocio';
+
+export function dealPath(id: string): string {
+  return `${paths.pipeline}?${DEAL_PARAM}=${id}`;
+}
+
 export const mainNavigation: NavigationItem[] = [
   {
     title: 'Dashboard',
@@ -46,16 +54,7 @@ export const mainNavigation: NavigationItem[] = [
     title: 'Funil de Vendas',
     path: paths.pipeline,
     icon: KanbanSquare,
-    description: 'Kanban de oportunidades com etapas configuráveis.',
-    upcoming: {
-      phase: 3,
-      features: [
-        'Kanban com arrastar e soltar entre etapas',
-        'Valor potencial, responsável e previsão de fechamento',
-        'Encerramento de negócios ganhos e perdidos',
-        'Histórico de movimentações',
-      ],
-    },
+    description: 'Kanban de oportunidades, do primeiro contato ao fechamento.',
   },
   {
     title: 'Tarefas',

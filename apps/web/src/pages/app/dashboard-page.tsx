@@ -15,6 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrentUser, usePermission } from '@/features/auth/hooks';
 import { useCustomerStats } from '@/features/customers/hooks';
+import { useDealStats } from '@/features/deals/hooks';
 import { KpiGrid } from '@/features/dashboard/components/kpi-grid';
 import { OrganizationCard } from '@/features/dashboard/components/organization-card';
 import { TeamCompositionCard } from '@/features/dashboard/components/team-composition-card';
@@ -37,6 +38,7 @@ export function DashboardPage() {
   const canReadMembers = usePermission('members:read');
   const members = useOrganizationMembers();
   const customerStats = useCustomerStats();
+  const dealStats = useDealStats();
 
   return (
     <div className="space-y-8">
@@ -54,7 +56,7 @@ export function DashboardPage() {
         }
       />
 
-      <KpiGrid customerStats={customerStats.data} />
+      <KpiGrid customerStats={customerStats.data} dealStats={dealStats.data} />
 
       {summary.isError ? (
         <Alert variant="destructive">

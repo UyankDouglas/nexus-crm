@@ -9,6 +9,50 @@ const longDateFormatter = new Intl.DateTimeFormat('pt-BR', {
   month: 'long',
 });
 
+const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const compactCurrencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+const percentFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'percent',
+  maximumFractionDigits: 1,
+});
+
+/** R$ 12.345,67 */
+export function formatCurrency(value: number): string {
+  return currencyFormatter.format(value);
+}
+
+/** R$ 1,2 mi — para totais em espaços pequenos. */
+export function formatCurrencyCompact(value: number): string {
+  return compactCurrencyFormatter.format(value);
+}
+
+/** 0,625 → "62,5%" */
+export function formatPercent(ratio: number): string {
+  return percentFormatter.format(ratio);
+}
+
+/** Data sem horário (AAAA-MM-DD) exibida sem conversão de fuso: "15 de dez. de 2026". */
+export function formatIsoDate(value: string): string {
+  const [year, month, day] = value.split('-').map(Number) as [number, number, number];
+  return dateFormatter.format(new Date(year, month - 1, day));
+}
+
+/** Dias inteiros desde a data informada (0 = hoje). */
+export function daysSince(value: string | Date, now = new Date()): number {
+  return Math.max(0, Math.floor((now.getTime() - new Date(value).getTime()) / 86_400_000));
+}
+
+/** Data de hoje no formato AAAA-MM-DD, no fuso do navegador. */
+export function todayIsoDate(now = new Date()): string {
+  const offset = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
 const relativeFormatter = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
 const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ['year', 365 * 24 * 60 * 60],

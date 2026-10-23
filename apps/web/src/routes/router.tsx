@@ -97,6 +97,12 @@ export const router = createBrowserRouter([
                   Component: (await import('@/pages/app/customer-detail-page')).CustomerDetailPage,
                 }),
               },
+              {
+                path: paths.pipeline,
+                lazy: async () => ({
+                  Component: (await import('@/pages/app/pipeline-page')).PipelinePage,
+                }),
+              },
               ...upcomingRoutes,
               {
                 path: paths.settings,
