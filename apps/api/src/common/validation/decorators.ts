@@ -1,6 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   CUSTOMER_LIMITS,
+  isValidIsoDate,
   normalizeDocument,
   normalizeTags,
   onlyDigits,
@@ -19,6 +20,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateBy,
 } from 'class-validator';
 
 type TransformParams = { value: unknown };
@@ -146,6 +148,21 @@ export function Tags() {
     MaxLength(CUSTOMER_LIMITS.tagLength, {
       each: true,
       message: `Cada tag deve ter no máximo ${CUSTOMER_LIMITS.tagLength} caracteres.`,
+    }),
+  );
+}
+
+/** Data de calendário opcional no formato AAAA-MM-DD (rejeita datas inexistentes). */
+export function OptionalIsoDate() {
+  return applyDecorators(
+    Transform(blankToNull((value) => value.trim())),
+    IsOptional(),
+    ValidateBy({
+      name: 'isIsoDate',
+      validator: {
+        validate: (value: unknown) => typeof value === 'string' && isValidIsoDate(value),
+        defaultMessage: () => 'Informe uma data válida.',
+      },
     }),
   );
 }

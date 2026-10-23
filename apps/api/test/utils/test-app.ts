@@ -6,6 +6,7 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module';
 import { configureApp } from '../../src/app.setup';
 import type { MemberRole } from '../../src/generated/prisma/client';
+import { createDefaultPipeline } from '../../src/modules/deals/default-pipeline';
 import type { MailMessage } from '../../src/modules/mail/mail.service';
 import { MailService } from '../../src/modules/mail/mail.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -48,7 +49,7 @@ export async function createTestApp(): Promise<TestContext> {
 /** Limpa todas as tabelas do banco de testes (comando fixo, sem entrada externa). */
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "contacts", "customers", "password_reset_tokens", "sessions", "organization_members", "organizations", "users" CASCADE',
+    'TRUNCATE TABLE "deal_stage_history", "deals", "pipeline_stages", "pipelines", "contacts", "customers", "password_reset_tokens", "sessions", "organization_members", "organizations", "users" CASCADE',
   );
 }
 
@@ -66,11 +67,14 @@ export async function createUser(
   });
 }
 
+/** Cria a organização já com o funil padrão, como acontece no cadastro. */
 export async function createOrganization(
   prisma: PrismaService,
   data: { name: string; slug: string },
 ): Promise<{ id: string }> {
-  return prisma.organization.create({ data, select: { id: true } });
+  const organization = await prisma.organization.create({ data, select: { id: true } });
+  await createDefaultPipeline(prisma, organization.id);
+  return organization;
 }
 
 export async function addMember(

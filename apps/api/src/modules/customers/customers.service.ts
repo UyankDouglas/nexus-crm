@@ -17,6 +17,7 @@ import {
 } from '@nexus/shared';
 import type { TenantAuthContext } from '../../common/auth/auth-context';
 import { AppException } from '../../common/errors/app.exception';
+import { assertActiveMember } from '../../common/tenancy/members';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -163,10 +164,22 @@ export class CustomersService {
     return this.get(auth, id);
   }
 
-  /** Exclui o cliente (contatos em cascata) e desvincula as pessoas ligadas a ele. */
+  /**
+   * Exclui o cliente (contatos em cascata) e desvincula as pessoas ligadas a ele. Clientes com
+   * negócios não são excluídos, para não apagar o histórico comercial.
+   */
   async remove(auth: TenantAuthContext, id: string): Promise<void> {
     await this.findInScope(auth, id);
     const organizationId = auth.organization.id;
+
+    const deals = await this.prisma.deal.count({ where: { organizationId, customerId: id } });
+    if (deals > 0) {
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        API_ERROR_CODES.CONFLICT,
+        `Este cliente tem ${deals} ${deals === 1 ? 'negócio' : 'negócios'}. Exclua ou transfira os negócios antes de excluir o cliente.`,
+      );
+    }
 
     await this.prisma.$transaction([
       this.prisma.customer.updateMany({
@@ -282,17 +295,7 @@ export class CustomersService {
     if (!canAssignCustomers(auth)) {
       throw AppException.forbidden('Somente gestores e administradores podem distribuir clientes.');
     }
-    if (ownerId === null) return;
-
-    const member = await this.prisma.organizationMember.findUnique({
-      where: { organizationId_userId: { organizationId: auth.organization.id, userId: ownerId } },
-      select: { status: true },
-    });
-    if (member?.status !== 'ACTIVE') {
-      throw AppException.validation({
-        ownerId: ['Selecione um membro ativo da organização.'],
-      });
-    }
+    if (ownerId !== null) await assertActiveMember(this.prisma, auth.organization.id, ownerId);
   }
 
   private async assertLinkableCompany(

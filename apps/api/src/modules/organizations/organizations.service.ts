@@ -9,6 +9,7 @@ import { AppException } from '../../common/errors/app.exception';
 import { randomBytes } from 'node:crypto';
 import { slugify } from '../../common/utils/slug';
 import type { Prisma } from '../../generated/prisma/client';
+import { createDefaultPipeline } from '../deals/default-pipeline';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { UpdateOrganizationDto } from './dto/organization.dto';
 
@@ -24,7 +25,7 @@ export class OrganizationsService {
     tx: Prisma.TransactionClient,
     input: { name: string; adminUserId: string },
   ): Promise<{ id: string }> {
-    return tx.organization.create({
+    const organization = await tx.organization.create({
       data: {
         name: input.name,
         slug: await this.generateUniqueSlug(tx, input.name),
@@ -32,6 +33,8 @@ export class OrganizationsService {
       },
       select: { id: true },
     });
+    await createDefaultPipeline(tx, organization.id);
+    return organization;
   }
 
   async getSummary(organizationId: string): Promise<OrganizationSummary> {
