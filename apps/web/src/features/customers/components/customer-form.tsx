@@ -47,7 +47,7 @@ import { useCurrentUser, usePermission } from '@/features/auth/hooks';
 import { useOrganizationMembers } from '@/features/organization/hooks';
 import { applyApiErrors } from '@/lib/form-errors';
 import { useCustomerTags } from '../hooks';
-import { CompanyCombobox } from './company-combobox';
+import { CustomerCombobox } from './customer-combobox';
 import { TagInput } from './tag-input';
 
 const NONE = '__none__';
@@ -217,8 +217,10 @@ export function CustomerForm({ customer, onSubmit, onCancel, submitLabel }: Cust
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="field-companyId">Empresa vinculada</FieldLabel>
-                  <CompanyCombobox
+                  <CustomerCombobox
                     id="field-companyId"
+                    type="COMPANY"
+                    placeholder="Selecione uma empresa"
                     value={company}
                     invalid={fieldState.invalid}
                     onChange={(selected) => {

@@ -1,4 +1,4 @@
-import type { CustomerSummary } from '@nexus/shared';
+import type { CustomerSummary, CustomerType } from '@nexus/shared';
 import { Building2, Check, ChevronsUpDown, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -16,20 +16,33 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { cn } from '@/lib/utils';
 import { useCustomers } from '../hooks';
 
-interface CompanyComboboxProps {
+interface CustomerComboboxProps {
   id?: string;
   value: CustomerSummary | null;
-  onChange: (company: CustomerSummary | null) => void;
+  onChange: (customer: CustomerSummary | null) => void;
   invalid?: boolean;
+  /** Restringe a busca a empresas ou pessoas físicas. */
+  type?: CustomerType;
+  placeholder?: string;
+  /** Permite limpar a seleção (campos opcionais). */
+  clearable?: boolean;
 }
 
-/** Seleção da empresa vinculada a uma pessoa física, com busca no servidor. */
-export function CompanyCombobox({ id, value, onChange, invalid }: CompanyComboboxProps) {
+/** Seleção de cliente com busca no servidor (respeita a carteira do usuário). */
+export function CustomerCombobox({
+  id,
+  value,
+  onChange,
+  invalid,
+  type,
+  placeholder = 'Selecione um cliente',
+  clearable = true,
+}: CustomerComboboxProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const debounced = useDebouncedValue(search.trim(), 300);
-  const companies = useCustomers({
-    type: 'COMPANY',
+  const customers = useCustomers({
+    type,
     search: debounced || undefined,
     page: 1,
     pageSize: 8,
@@ -53,34 +66,38 @@ export function CompanyCombobox({ id, value, onChange, invalid }: CompanyCombobo
               className={cn('flex items-center gap-2 truncate', !value && 'text-muted-foreground')}
             >
               <Building2 />
-              {value?.name ?? 'Selecione uma empresa'}
+              {value?.name ?? placeholder}
             </span>
             <ChevronsUpDown className="opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
           <Command shouldFilter={false}>
-            <CommandInput value={search} onValueChange={setSearch} placeholder="Buscar empresa…" />
+            <CommandInput
+              value={search}
+              onValueChange={setSearch}
+              placeholder="Buscar pelo nome…"
+            />
             <CommandList>
-              {companies.isFetching && !companies.data ? (
+              {customers.isFetching && !customers.data ? (
                 <div className="flex justify-center py-6">
                   <Spinner />
                 </div>
               ) : (
                 <>
-                  <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                  <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
                   <CommandGroup>
-                    {(companies.data?.data ?? []).map((company) => (
+                    {(customers.data?.data ?? []).map((customer) => (
                       <CommandItem
-                        key={company.id}
-                        value={company.id}
+                        key={customer.id}
+                        value={customer.id}
                         onSelect={() => {
-                          onChange({ id: company.id, name: company.name });
+                          onChange({ id: customer.id, name: customer.name });
                           setOpen(false);
                         }}
                       >
-                        <span className="flex-1 truncate">{company.name}</span>
-                        {value?.id === company.id && <Check className="text-primary" />}
+                        <span className="flex-1 truncate">{customer.name}</span>
+                        {value?.id === customer.id && <Check className="text-primary" />}
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -90,14 +107,14 @@ export function CompanyCombobox({ id, value, onChange, invalid }: CompanyCombobo
           </Command>
         </PopoverContent>
       </Popover>
-      {value && (
+      {value && clearable && (
         <Button
           type="button"
           variant="ghost"
           size="icon"
           className="size-9"
           onClick={() => onChange(null)}
-          aria-label="Remover empresa vinculada"
+          aria-label="Limpar seleção"
         >
           <X />
         </Button>
