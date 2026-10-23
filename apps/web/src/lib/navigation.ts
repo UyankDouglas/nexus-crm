@@ -22,6 +22,13 @@ export const paths = {
   settings: '/configuracoes',
 } as const;
 
+/** Parâmetro de URL que abre o cadastro de cliente (usado pela busca global). */
+export const NEW_CUSTOMER_PARAM = 'novo';
+
+export function customerPath(id: string): string {
+  return `${paths.customers}/${id}`;
+}
+
 export const mainNavigation: NavigationItem[] = [
   {
     title: 'Dashboard',
@@ -33,16 +40,7 @@ export const mainNavigation: NavigationItem[] = [
     title: 'Clientes',
     path: paths.customers,
     icon: Users,
-    description: 'Cadastro de clientes, contatos e histórico de interações.',
-    upcoming: {
-      phase: 2,
-      features: [
-        'Cadastro e edição de clientes e contatos',
-        'Busca, filtros e paginação',
-        'Responsável comercial, tags e observações',
-        'Histórico de interações por cliente',
-      ],
-    },
+    description: 'Empresas e pessoas físicas, contatos, responsáveis e tags.',
   },
   {
     title: 'Funil de Vendas',

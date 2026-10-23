@@ -9,6 +9,27 @@ const longDateFormatter = new Intl.DateTimeFormat('pt-BR', {
   month: 'long',
 });
 
+const relativeFormatter = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
+const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ['year', 365 * 24 * 60 * 60],
+  ['month', 30 * 24 * 60 * 60],
+  ['week', 7 * 24 * 60 * 60],
+  ['day', 24 * 60 * 60],
+  ['hour', 60 * 60],
+  ['minute', 60],
+];
+
+/** "há 3 dias", "ontem", "agora" — para datas recentes em listas. */
+export function formatRelative(value: string | Date, now = new Date()): string {
+  const seconds = Math.round((new Date(value).getTime() - now.getTime()) / 1000);
+  for (const [unit, unitSeconds] of RELATIVE_UNITS) {
+    if (Math.abs(seconds) >= unitSeconds) {
+      return relativeFormatter.format(Math.round(seconds / unitSeconds), unit);
+    }
+  }
+  return 'agora';
+}
+
 export function formatDate(value: string | Date): string {
   return dateFormatter.format(new Date(value));
 }

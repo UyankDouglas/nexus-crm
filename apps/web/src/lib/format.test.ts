@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getFirstName, getInitials, greeting } from './format';
+import { formatRelative, getFirstName, getInitials, greeting } from './format';
 
 describe('formatação', () => {
   it.each([
@@ -20,5 +20,13 @@ describe('formatação', () => {
     expect(greeting(new Date(2026, 0, 1, 9))).toBe('Bom dia');
     expect(greeting(new Date(2026, 0, 1, 14))).toBe('Boa tarde');
     expect(greeting(new Date(2026, 0, 1, 20))).toBe('Boa noite');
+  });
+
+  it('formata datas relativas em português', () => {
+    const now = new Date('2026-10-23T12:00:00Z');
+    expect(formatRelative('2026-10-23T11:59:40Z', now)).toBe('agora');
+    expect(formatRelative('2026-10-22T12:00:00Z', now)).toBe('ontem');
+    expect(formatRelative('2026-10-20T12:00:00Z', now)).toBe('há 3 dias');
+    expect(formatRelative('2026-07-23T12:00:00Z', now)).toBe('há 3 meses');
   });
 });

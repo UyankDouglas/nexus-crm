@@ -1,4 +1,5 @@
-import { Building2, LogOut, Moon, Search, Sun } from 'lucide-react';
+import { formatDocument } from '@nexus/shared';
+import { Building2, LogOut, Moon, Plus, Search, Sun, UserRound } from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -16,15 +17,40 @@ import {
 } from '@/components/ui/command';
 import { useCurrentUser } from '@/features/auth/hooks';
 import { useSignOut } from '@/features/auth/use-sign-out';
-import { allNavigation, paths } from '@/lib/navigation';
+import { useCustomers } from '@/features/customers/hooks';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { allNavigation, customerPath, NEW_CUSTOMER_PARAM, paths } from '@/lib/navigation';
 
-/** Busca global (Ctrl/⌘ + K): navegação entre módulos e ações rápidas. */
+const MIN_SEARCH_LENGTH = 2;
+
+const normalize = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+
+/** Correspondência por trecho (sem acentos), mais previsível que a busca aproximada padrão. */
+function matchCommand(value: string, search: string, keywords: string[] = []): number {
+  const query = normalize(search.trim());
+  if (!query) return 1;
+  return normalize([value, ...keywords].join(' ')).includes(query) ? 1 : 0;
+}
+
+/** Busca global (Ctrl/⌘ + K): clientes, navegação entre módulos e ações rápidas. */
 export function CommandMenu() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const me = useCurrentUser();
   const { resolvedTheme, setTheme } = useTheme();
   const { signOut } = useSignOut();
+  const [search, setSearch] = useState('');
+  const term = useDebouncedValue(search.trim(), 250);
+  const searching = open && term.length >= MIN_SEARCH_LENGTH;
+  const customers = useCustomers(
+    { search: term, page: 1, pageSize: 5, sort: 'name' },
+    { enabled: searching },
+  );
+  const customerResults = searching ? (customers.data?.data ?? []) : [];
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -39,6 +65,7 @@ export function CommandMenu() {
 
   const run = (action: () => void) => {
     setOpen(false);
+    setSearch('');
     action();
   };
 
@@ -58,14 +85,42 @@ export function CommandMenu() {
       </Button>
       <CommandDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setSearch('');
+        }}
         title="Buscar"
-        description="Navegue pelos módulos ou execute uma ação."
+        description="Busque clientes, navegue pelos módulos ou execute uma ação."
       >
-        <Command>
-          <CommandInput placeholder="Digite um módulo ou ação…" />
+        <Command filter={matchCommand}>
+          <CommandInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Buscar clientes, módulos ou ações…"
+          />
           <CommandList>
             <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+            {customerResults.length > 0 && (
+              <>
+                <CommandGroup heading="Clientes">
+                  {customerResults.map((customer) => (
+                    <CommandItem
+                      key={customer.id}
+                      value={`cliente-${customer.id}`}
+                      keywords={[search]}
+                      onSelect={() => run(() => void navigate(customerPath(customer.id)))}
+                    >
+                      {customer.type === 'COMPANY' ? <Building2 /> : <UserRound />}
+                      <span className="truncate">{customer.name}</span>
+                      <CommandShortcut className="tracking-normal">
+                        {customer.document ? formatDocument(customer.document) : customer.city}
+                      </CommandShortcut>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+                <CommandSeparator />
+              </>
+            )}
             <CommandGroup heading="Módulos">
               {allNavigation.map((item) => (
                 <CommandItem
@@ -81,6 +136,15 @@ export function CommandMenu() {
             </CommandGroup>
             <CommandSeparator />
             <CommandGroup heading="Ações">
+              <CommandItem
+                value="novo cliente cadastrar"
+                onSelect={() =>
+                  run(() => void navigate(`${paths.customers}?${NEW_CUSTOMER_PARAM}=1`))
+                }
+              >
+                <Plus />
+                <span>Novo cliente</span>
+              </CommandItem>
               <CommandItem
                 value="alternar tema claro escuro"
                 onSelect={() => run(() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark'))}
