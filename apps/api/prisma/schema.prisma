@@ -28,6 +28,21 @@ enum MembershipStatus {
   @@map("membership_status")
 }
 
+enum CustomerType {
+  COMPANY
+  PERSON
+
+  @@map("customer_type")
+}
+
+enum CustomerStatus {
+  LEAD
+  ACTIVE
+  INACTIVE
+
+  @@map("customer_status")
+}
+
 model User {
   id           String    @id @default(uuid(7)) @db.Uuid
   name         String    @db.VarChar(120)
@@ -41,6 +56,7 @@ model User {
   memberships         OrganizationMember[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  createdCustomers    Customer[]           @relation("CustomerCreatedBy")
 
   @@map("users")
 }
@@ -52,8 +68,10 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  members  OrganizationMember[]
-  sessions Session[]
+  members   OrganizationMember[]
+  sessions  Session[]
+  customers Customer[]
+  contacts  Contact[]
 
   @@map("organizations")
 }
@@ -69,8 +87,9 @@ model OrganizationMember {
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownedCustomers Customer[]   @relation("CustomerOwner")
 
   @@unique([organizationId, userId])
   @@index([userId])
@@ -113,4 +132,70 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+/// Cliente (empresa ou pessoa física). Toda referência a outro registro usa uma FK composta
+/// com `organization_id`, garantindo no banco que ela aponta para a mesma organização.
+model Customer {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  type           CustomerType
+  name           String         @db.VarChar(160)
+  tradeName      String?        @map("trade_name") @db.VarChar(160)
+  /// CPF ou CNPJ (inclusive alfanumérico) sem pontuação.
+  document       String?        @db.VarChar(14)
+  email          String?        @db.VarChar(254)
+  /// Somente dígitos.
+  phone          String?        @db.VarChar(15)
+  website        String?        @db.VarChar(200)
+  city           String?        @db.VarChar(80)
+  state          String?        @db.Char(2)
+  status         CustomerStatus @default(LEAD)
+  tags           String[]       @default([])
+  notes          String?
+  /// Responsável comercial (usuário com vínculo na organização).
+  ownerId        String?        @map("owner_id") @db.Uuid
+  /// Empresa à qual uma pessoa física está vinculada.
+  companyId      String?        @map("company_id") @db.Uuid
+  createdById    String?        @map("created_by_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ownerMembership OrganizationMember? @relation("CustomerOwner", fields: [organizationId, ownerId], references: [organizationId, userId], onDelete: NoAction)
+  company         Customer?           @relation("CustomerCompany", fields: [organizationId, companyId], references: [organizationId, id], onDelete: NoAction)
+  people          Customer[]          @relation("CustomerCompany")
+  createdBy       User?               @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  contacts        Contact[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, document])
+  @@index([organizationId, name])
+  @@index([organizationId, updatedAt])
+  @@index([organizationId, ownerId])
+  @@index([organizationId, status])
+  @@index([organizationId, companyId])
+  @@index([tags], type: Gin)
+  @@map("customers")
+}
+
+/// Pessoa de contato de um cliente.
+model Contact {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  customerId     String   @map("customer_id") @db.Uuid
+  name           String   @db.VarChar(120)
+  email          String?  @db.VarChar(254)
+  phone          String?  @db.VarChar(15)
+  position       String?  @db.VarChar(80)
+  isPrimary      Boolean  @default(false) @map("is_primary")
+  notes          String?  @db.VarChar(1000)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([organizationId, customerId])
+  @@map("contacts")
 }
