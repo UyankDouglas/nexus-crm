@@ -1,0 +1,43 @@
+# NEXUS CRM — servidor web de produção.
+# SITE_ADDRESS: domínio público (ex.: crm.suaempresa.com.br) para HTTPS automático, ou ":80"
+# para servir apenas HTTP atrás de outro proxy com TLS.
+{
+	# API administrativa do Caddy desligada: a configuração vem só deste arquivo.
+	admin off
+}
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# Sem log de acesso: links de convite e de redefinição de senha levam tokens na URL.
+
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy api:3333
+	}
+
+	# Arquivos com hash no nome: cache longo. Um arquivo ausente (ex.: de uma versão anterior)
+	# responde 404 em vez do index.html, e a aplicação pede para recarregar a página.
+	handle /assets/* {
+		root * /srv
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Demais rotas são da aplicação (SPA): o index.html é sempre revalidado.
+	handle {
+		root * /srv
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

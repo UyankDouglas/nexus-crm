@@ -1,0 +1,21 @@
+# Contexto de build das imagens: só o código-fonte e os manifestos.
+.git
+.github
+.claude
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+apps/api/src/generated
+apps/api/.mail-outbox
+e2e/.auth
+e2e/.mail-outbox
+e2e/test-results
+e2e/playwright-report
+test-results
+playwright-report
+docs/screenshots
+*.log
