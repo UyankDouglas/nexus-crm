@@ -8,6 +8,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRetainedValue } from '@/hooks/use-retained-value';
 import { useCreateDeal, useDeal, usePipelines, useUpdateDeal } from '../hooks';
 import { DealForm } from './deal-form';
 
@@ -22,9 +23,11 @@ interface DealFormSheetProps {
   onCreated?: (deal: DealDetail) => void;
 }
 
-export function DealFormSheet({ mode, onClose, onCreated }: DealFormSheetProps) {
+export function DealFormSheet({ mode: currentMode, onClose, onCreated }: DealFormSheetProps) {
+  // Durante a animação de fechamento, o formulário anterior continua visível.
+  const mode = useRetainedValue(currentMode);
   return (
-    <Sheet open={mode !== null} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={currentMode !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
         <SheetHeader className="border-b px-6 py-4">
           <SheetTitle>{mode?.kind === 'edit' ? 'Editar negócio' : 'Novo negócio'}</SheetTitle>

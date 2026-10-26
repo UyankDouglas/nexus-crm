@@ -8,6 +8,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRetainedValue } from '@/hooks/use-retained-value';
 import { useCreateCustomer, useCustomer, useUpdateCustomer } from '../hooks';
 import { CustomerForm } from './customer-form';
 
@@ -20,9 +21,15 @@ interface CustomerFormSheetProps {
 }
 
 /** Drawer de cadastro e edição de clientes. */
-export function CustomerFormSheet({ mode, onClose, onCreated }: CustomerFormSheetProps) {
+export function CustomerFormSheet({
+  mode: currentMode,
+  onClose,
+  onCreated,
+}: CustomerFormSheetProps) {
+  // Durante a animação de fechamento, o formulário anterior continua visível.
+  const mode = useRetainedValue(currentMode);
   return (
-    <Sheet open={mode !== null} onOpenChange={(open) => !open && onClose()}>
+    <Sheet open={currentMode !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
         <SheetHeader className="border-b px-6 py-4">
           <SheetTitle>{mode?.kind === 'edit' ? 'Editar cliente' : 'Novo cliente'}</SheetTitle>
