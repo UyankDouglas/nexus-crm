@@ -59,6 +59,32 @@ enum DealStatus {
   @@map("deal_status")
 }
 
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELED
+
+  @@map("task_status")
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+
+  @@map("task_priority")
+}
+
+enum ActivityType {
+  CALL
+  MEETING
+  EMAIL
+  NOTE
+
+  @@map("activity_type")
+}
+
 model User {
   id           String    @id @default(uuid(7)) @db.Uuid
   name         String    @db.VarChar(120)
@@ -75,6 +101,7 @@ model User {
   createdCustomers    Customer[]           @relation("CustomerCreatedBy")
   createdDeals        Deal[]               @relation("DealCreatedBy")
   dealHistoryChanges  DealStageHistory[]   @relation("DealHistoryChangedBy")
+  createdTasks        Task[]               @relation("TaskCreatedBy")
 
   @@map("users")
 }
@@ -86,12 +113,14 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  members   OrganizationMember[]
-  sessions  Session[]
-  customers Customer[]
-  contacts  Contact[]
-  pipelines Pipeline[]
-  deals     Deal[]
+  members    OrganizationMember[]
+  sessions   Session[]
+  customers  Customer[]
+  contacts   Contact[]
+  pipelines  Pipeline[]
+  deals      Deal[]
+  tasks      Task[]
+  activities Activity[]
 
   @@map("organizations")
 }
@@ -111,6 +140,8 @@ model OrganizationMember {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   ownedCustomers Customer[]   @relation("CustomerOwner")
   ownedDeals     Deal[]       @relation("DealOwner")
+  assignedTasks  Task[]       @relation("TaskAssignee")
+  activities     Activity[]   @relation("ActivityAuthor")
 
   @@unique([organizationId, userId])
   @@index([userId])
@@ -189,6 +220,8 @@ model Customer {
   deals           Deal[]
   createdBy       User?               @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   contacts        Contact[]
+  tasks           Task[]
+  activities      Activity[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, document])
@@ -291,6 +324,8 @@ model Deal {
   ownerMembership OrganizationMember? @relation("DealOwner", fields: [organizationId, ownerId], references: [organizationId, userId], onDelete: NoAction)
   createdBy       User?               @relation("DealCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   history         DealStageHistory[]
+  tasks           Task[]
+  activities      Activity[]
 
   @@unique([organizationId, id])
   @@index([organizationId, stageId, position])
@@ -322,4 +357,70 @@ model DealStageHistory {
 
   @@index([organizationId, dealId, createdAt])
   @@map("deal_stage_history")
+}
+
+// ---------------------------------------------------------------------------
+// Tarefas e atividades
+// ---------------------------------------------------------------------------
+
+/// Tarefa com responsável, prazo e prioridade, opcionalmente ligada a um cliente e/ou negócio.
+model Task {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  title          String       @db.VarChar(160)
+  description    String?
+  status         TaskStatus   @default(TODO)
+  priority       TaskPriority @default(MEDIUM)
+  /// Prazo (data de calendário, sem fuso).
+  dueDate        DateTime     @map("due_date") @db.Date
+  /// Preenchido somente enquanto a tarefa está concluída.
+  completedAt    DateTime?    @map("completed_at") @db.Timestamptz(3)
+  assigneeId     String       @map("assignee_id") @db.Uuid
+  customerId     String?      @map("customer_id") @db.Uuid
+  /// Ao excluir o negócio, a API desfaz o vínculo antes (a tarefa continua no cliente).
+  dealId         String?      @map("deal_id") @db.Uuid
+  createdById    String?      @map("created_by_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assigneeMembership OrganizationMember @relation("TaskAssignee", fields: [organizationId, assigneeId], references: [organizationId, userId], onDelete: NoAction)
+  customer           Customer?          @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Cascade)
+  deal               Deal?              @relation(fields: [organizationId, dealId], references: [organizationId, id], onDelete: NoAction)
+  createdBy          User?              @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, assigneeId, status, dueDate])
+  @@index([organizationId, status, dueDate])
+  @@index([organizationId, customerId])
+  @@index([organizationId, dealId])
+  @@map("tasks")
+}
+
+/// Interação registrada (ligação, reunião, e-mail ou observação) no histórico de um cliente.
+model Activity {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  type           ActivityType
+  subject        String       @db.VarChar(160)
+  description    String?
+  occurredAt     DateTime     @map("occurred_at") @db.Timestamptz(3)
+  customerId     String       @map("customer_id") @db.Uuid
+  /// Ao excluir o negócio, a API desfaz o vínculo antes (o registro continua no cliente).
+  dealId         String?      @map("deal_id") @db.Uuid
+  authorId       String       @map("author_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer         Customer           @relation(fields: [organizationId, customerId], references: [organizationId, id], onDelete: Cascade)
+  deal             Deal?              @relation(fields: [organizationId, dealId], references: [organizationId, id], onDelete: NoAction)
+  authorMembership OrganizationMember @relation("ActivityAuthor", fields: [organizationId, authorId], references: [organizationId, userId], onDelete: NoAction)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, occurredAt(sort: Desc)])
+  @@index([organizationId, customerId, occurredAt(sort: Desc)])
+  @@index([organizationId, dealId])
+  @@index([organizationId, authorId])
+  @@map("activities")
 }
