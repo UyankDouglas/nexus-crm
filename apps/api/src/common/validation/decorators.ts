@@ -1,6 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   CUSTOMER_LIMITS,
+  isActivityDateAllowed,
   isValidIsoDate,
   normalizeDocument,
   normalizeTags,
@@ -162,6 +163,43 @@ export function OptionalIsoDate() {
       validator: {
         validate: (value: unknown) => typeof value === 'string' && isValidIsoDate(value),
         defaultMessage: () => 'Informe uma data válida.',
+      },
+    }),
+  );
+}
+
+/** Data de calendário obrigatória no formato AAAA-MM-DD. */
+export function IsoDate(message = 'Informe uma data válida.') {
+  return applyDecorators(
+    Transform(trim),
+    ValidateBy({
+      name: 'isIsoDate',
+      validator: {
+        validate: (value: unknown) => typeof value === 'string' && isValidIsoDate(value),
+        defaultMessage: () => message,
+      },
+    }),
+  );
+}
+
+/**
+ * Data e hora ISO 8601 que não esteja no futuro (com a mesma tolerância do frontend). Usada em
+ * registros de algo que já aconteceu, como atividades.
+ */
+export function PastDateTime() {
+  return applyDecorators(
+    ValidateBy({
+      name: 'isPastDateTime',
+      validator: {
+        validate: (value: unknown) =>
+          typeof value === 'string' &&
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value) &&
+          !Number.isNaN(Date.parse(value)) &&
+          isActivityDateAllowed(new Date(value)),
+        defaultMessage: (args) =>
+          typeof args?.value === 'string' && !Number.isNaN(Date.parse(args.value))
+            ? 'A atividade não pode estar no futuro. Para compromissos, crie uma tarefa.'
+            : 'Informe uma data e hora válidas.',
       },
     }),
   );

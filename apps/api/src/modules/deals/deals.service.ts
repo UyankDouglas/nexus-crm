@@ -285,11 +285,24 @@ export class DealsService {
     return this.get(auth, id);
   }
 
+  /**
+   * Exclui o negócio e seu histórico de etapas. Tarefas e atividades vinculadas continuam no
+   * cliente: o vínculo com o negócio é desfeito na mesma transação.
+   */
   async remove(auth: TenantAuthContext, id: string): Promise<void> {
     await this.findInScope(auth, id);
-    await this.prisma.deal.delete({
-      where: { organizationId_id: { organizationId: auth.organization.id, id } },
-    });
+    const organizationId = auth.organization.id;
+    await this.prisma.$transaction([
+      this.prisma.task.updateMany({
+        where: { organizationId, dealId: id },
+        data: { dealId: null },
+      }),
+      this.prisma.activity.updateMany({
+        where: { organizationId, dealId: id },
+        data: { dealId: null },
+      }),
+      this.prisma.deal.delete({ where: { organizationId_id: { organizationId, id } } }),
+    ]);
   }
 
   async stats(auth: TenantAuthContext): Promise<DealStats> {

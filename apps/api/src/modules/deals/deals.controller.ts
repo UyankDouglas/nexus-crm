@@ -172,7 +172,11 @@ export class DealsController {
   @RequirePermissions('deals:delete')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiSecurity('csrf')
-  @ApiOperation({ summary: 'Exclui um negócio e seu histórico (gestores e administradores)' })
+  @ApiOperation({
+    summary: 'Exclui um negócio (gestores e administradores)',
+    description:
+      'Remove também o histórico de etapas. Tarefas e atividades vinculadas permanecem no cliente.',
+  })
   @ApiNoContentResponse()
   remove(
     @CurrentTenant() auth: TenantAuthContext,

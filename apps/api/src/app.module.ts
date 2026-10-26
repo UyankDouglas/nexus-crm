@@ -8,12 +8,15 @@ import { CsrfGuard } from './common/guards/csrf.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { AppConfigService } from './config/app-config.service';
 import { AppConfigModule } from './config/config.module';
+import { ActivitiesModule } from './modules/activities/activities.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DealsModule } from './modules/deals/deals.module';
 import { HealthModule } from './modules/health/health.module';
 import { MailModule } from './modules/mail/mail.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { TasksModule } from './modules/tasks/tasks.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 const ONE_MINUTE_MS = 60_000;
@@ -43,6 +46,9 @@ const ONE_MINUTE_MS = 60_000;
     OrganizationsModule,
     CustomersModule,
     DealsModule,
+    TasksModule,
+    ActivitiesModule,
+    DashboardModule,
     HealthModule,
   ],
   providers: [
