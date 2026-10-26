@@ -429,3 +429,99 @@ histórico. Funis só são excluídos sem negócios e quando não são o padrão
 **Consequências.** O quadro, os indicadores e o histórico continuam coerentes após qualquer
 mudança de configuração. O histórico guarda os nomes das etapas da época, então renomear ou
 excluir uma etapa não reescreve o passado.
+
+---
+
+## ADR-025 — Testes E2E com Playwright contra o build, em série e com a seed de demonstração
+
+**Data:** 2026-10-26
+
+**Contexto.** Os testes de integração cobrem a API, mas não o fluxo completo no navegador:
+cookies, CSRF, roteamento, arrastar e soltar, downloads e permissões vistas pelo usuário.
+
+**Decisão.** Um pacote `e2e/` com Playwright. Por padrão, a suíte sobe a API compilada e o
+`vite preview` do frontend contra o banco de testes, recriado pela seed antes da execução; as
+sessões de cada perfil são preparadas uma vez e reutilizadas. Os testes rodam em série (um único
+banco compartilhado) e criam os próprios dados com nomes únicos. Com `E2E_BASE_URL`, a mesma
+suíte roda contra um ambiente já no ar — no CI, os contêineres de produção. Os seletores seguem a
+interface acessível (papéis, rótulos e anúncios para leitores de tela).
+
+**Consequências.** Os testes exercitam o mesmo build que vai para produção e também verificam
+acessibilidade básica. A execução em série é mais lenta, mas previsível; o cenário que depende da
+caixa de saída de e-mails é pulado contra o ambiente de produção.
+
+---
+
+## ADR-026 — Produção em Docker Compose, com Caddy na frente da API
+
+**Data:** 2026-10-26
+
+**Contexto.** O projeto precisa de um deploy reproduzível, com HTTPS, sem acoplar o código a um
+provedor específico de nuvem.
+
+**Decisão.** `docker-compose.prod.yml` com quatro serviços: PostgreSQL, `migrate` (aplica as
+migrations e encerra), API e `web` (Caddy). O Caddy serve o frontend e repassa `/api` para a API
+na mesma origem — mantendo os cookies _first-party_ e dispensando CORS —, obtém certificados
+automaticamente e aplica os cabeçalhos de segurança (CSP sem scripts inline, HSTS etc.). Só ele
+publica portas. Um perfil `demo` opcional popula dados fictícios em um ambiente isolado.
+
+**Consequências.** Qualquer servidor com Docker hospeda a aplicação com um comando; o mesmo
+arranjo é validado no CI, inclusive com os testes E2E. Escalar horizontalmente exigiria um
+balanceador e mais réplicas da API (as sessões já estão no banco, sem estado em memória).
+
+---
+
+## ADR-027 — Imagens com `pnpm fetch` e somente dependências de produção
+
+**Data:** 2026-10-26
+
+**Contexto.** O monorepositório usa pnpm workspaces; a imagem da API não deve carregar
+ferramentas de build, testes nem o frontend.
+
+**Decisão.** O estágio de build usa `pnpm fetch` (cache por lockfile) e instala só o necessário
+para cada aplicação (`--filter`). A imagem final da API reinstala apenas as dependências de
+produção, sem scripts de instalação — o Prisma Client já está compilado em `dist` e o argon2 usa
+binários pré-compilados —, e roda com o usuário `node`. O estágio `migrate` reaproveita o build,
+que tem o Prisma CLI.
+
+**Consequências.** Imagem de produção menor e com menos superfície de ataque. A composição foi
+validada localmente simulando o estágio final (instalação de produção sem scripts e a API em modo
+produção) e é construída a cada push no CI.
+
+---
+
+## ADR-028 — Envio de e-mails por SMTP opcional (nodemailer 8)
+
+**Data:** 2026-10-26
+
+**Contexto.** Em produção, convites e redefinição de senha dependem de e-mail; até a Fase 5 as
+mensagens só eram gravadas em arquivo durante o desenvolvimento (ADR-006).
+
+**Decisão.** Com `SMTP_URL`, o `MailService` envia pelo SMTP configurado usando o nodemailer na
+linha 8 (madura e estável; a linha 10 teve dezenas de versões em poucas semanas). Sem SMTP, o
+desenvolvimento continua com a caixa de saída em arquivo e a produção apenas registra um aviso. A
+recuperação de senha envia em segundo plano para não revelar, pelo tempo de resposta ou por
+falhas, quais e-mails têm conta; o convite informa a falha ao administrador, que pode reenviar.
+
+**Consequências.** Funciona com qualquer provedor SMTP sem dependência de SDK específico. Filas e
+novas tentativas automáticas ficam para quando o volume justificar (item das funcionalidades
+adicionais).
+
+---
+
+## ADR-029 — Revisão de segurança transformada em testes
+
+**Data:** 2026-10-26
+
+**Contexto.** Revisões manuais envelhecem: uma rota nova sem permissão ou uma consulta sem filtro
+de organização pode passar despercebida.
+
+**Decisão.** Dois testes fixam as regras: um lê todas as rotas dos controllers e exige que cada
+uma declare sua proteção (com listas explícitas de rotas públicas e de rotas sem organização), e
+outro varre todas as rotas por ID e referências em corpos de requisição com uma sessão de outra
+organização, comparando os dados da vítima antes e depois. O relatório completo está em
+[security.md](security.md).
+
+**Consequências.** Toda rota nova obriga uma decisão consciente sobre acesso. A varredura precisa
+ser atualizada quando surgir uma nova rota por ID: a ausência da rota nova não quebra o teste,
+então a lista de tentativas deve ser revisada junto com cada controller novo.

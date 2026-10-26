@@ -11,29 +11,30 @@ apps/web  ──HTTP /api──▶  apps/api  ──Prisma (adapter pg)──▶
     └──── packages/shared ────┘   (perfis, permissões, schemas Zod, tipos de resposta)
 ```
 
-Em desenvolvimento o Vite repassa `/api` para a API (porta 3333). O navegador conversa apenas com a
-própria origem, então os cookies de sessão são _first-party_ e não há CORS envolvido.
+Em desenvolvimento o Vite repassa `/api` para a API (porta 3333); em produção, o Caddy faz o
+mesmo papel. O navegador conversa apenas com a própria origem, então os cookies de sessão são
+_first-party_ e não há CORS envolvido.
 
 ## Backend (apps/api)
 
 ### Módulos
 
-| Módulo          | Responsabilidade                                                                   |
-| --------------- | ---------------------------------------------------------------------------------- |
-| `config`        | Valida variáveis de ambiente com Zod na inicialização; acesso tipado               |
-| `prisma`        | `PrismaService` (Prisma 7 com driver adapter `@prisma/adapter-pg`)                 |
-| `auth`          | Cadastro, login, logout, sessão, troca de organização, CSRF, redefinição de senha  |
-| `organizations` | Resumo e atualização da organização ativa; membros, perfis e suspensão             |
-| `invitations`   | Convites por e-mail: envio, reenvio, cancelamento, pré-visualização e aceite       |
-| `customers`     | Clientes e contatos: listagem filtrada, CRUD, distribuição, tags e totais          |
-| `deals`         | Funis, etapas e negócios: quadro Kanban, histórico, totais e configuração de funis |
-| `tasks`         | Tarefas com responsável, prazo, prioridade e status, ligadas a clientes/negócios   |
-| `activities`    | Histórico de interações: ligações, reuniões, e-mails e observações                 |
-| `dashboard`     | Indicadores, séries por período e rankings calculados no banco                     |
-| `reports`       | Relatórios comerciais e exportação em CSV e Excel                                  |
-| `audit`         | Trilha de auditoria (global: os demais módulos registram ações nela)               |
-| `mail`          | Envio de e-mails (caixa de saída em arquivo durante o desenvolvimento)             |
-| `health`        | Verificação de disponibilidade da API e do banco                                   |
+| Módulo          | Responsabilidade                                                                      |
+| --------------- | ------------------------------------------------------------------------------------- |
+| `config`        | Valida variáveis de ambiente com Zod na inicialização; acesso tipado                  |
+| `prisma`        | `PrismaService` (Prisma 7 com driver adapter `@prisma/adapter-pg`)                    |
+| `auth`          | Cadastro, login, logout, sessão, troca de organização, CSRF, redefinição de senha     |
+| `organizations` | Resumo e atualização da organização ativa; membros, perfis e suspensão                |
+| `invitations`   | Convites por e-mail: envio, reenvio, cancelamento, pré-visualização e aceite          |
+| `customers`     | Clientes e contatos: listagem filtrada, CRUD, distribuição, tags e totais             |
+| `deals`         | Funis, etapas e negócios: quadro Kanban, histórico, totais e configuração de funis    |
+| `tasks`         | Tarefas com responsável, prazo, prioridade e status, ligadas a clientes/negócios      |
+| `activities`    | Histórico de interações: ligações, reuniões, e-mails e observações                    |
+| `dashboard`     | Indicadores, séries por período e rankings calculados no banco                        |
+| `reports`       | Relatórios comerciais e exportação em CSV e Excel                                     |
+| `audit`         | Trilha de auditoria (global: os demais módulos registram ações nela)                  |
+| `mail`          | E-mails por SMTP (`SMTP_URL`); sem SMTP, caixa de saída em arquivo no desenvolvimento |
+| `health`        | Verificação de disponibilidade da API e do banco                                      |
 
 Todos os domínios seguem o mesmo formato: `controller` fino, `service` com as regras, DTOs
 validados e acesso a dados sempre filtrado pelo escopo do contexto autenticado. IDs de rota são validados como UUID — malformados respondem 404 sem consultar
@@ -347,4 +348,34 @@ organizations ─< audit_logs    (actor_id, action, entity_type, entity_id, summ
   descarta o cache da sessão anterior antes de entrar.
 - Drawers e diálogos retêm o último conteúdo (`useRetainedValue`) para não encolherem vazios na
   animação de fechamento.
-- Tema claro/escuro aplicado antes da renderização (script em `index.html`) para evitar _flash_.
+- Tema claro/escuro aplicado antes da renderização (`public/theme-init.js`, carregado pelo
+  `index.html`) para evitar _flash_ — em arquivo, e não inline, para a CSP de produção.
+- **Erros de tela** aparecem dentro do layout (sidebar e topbar continuam disponíveis), sem
+  detalhes internos; se uma tela não carrega por causa de um deploy novo, a mensagem pede para
+  recarregar a página.
+
+## Testes
+
+| Camada             | Onde                         | O que cobre                                                                     |
+| ------------------ | ---------------------------- | ------------------------------------------------------------------------------- |
+| Unitários (shared) | `packages/shared/src`        | Schemas, RBAC, datas, períodos e regras de domínio                              |
+| Unitários (API)    | `apps/api/src/**/*.spec.ts`  | Guards, proteção de todas as rotas, configuração, e-mail, exportação            |
+| Integração (API)   | `apps/api/test`              | Critérios de aceite contra PostgreSQL real, incluindo a varredura de isolamento |
+| Unitários (web)    | `apps/web/src/**/*.test.tsx` | Formulários, páginas, filtros, utilitários do quadro                            |
+| Ponta a ponta      | `e2e/`                       | Fluxos completos no navegador (Playwright), também contra a produção em Docker  |
+
+## Produção
+
+```
+Navegador ──HTTPS──▶ web (Caddy: SPA + cabeçalhos) ──/api──▶ api (NestJS) ──▶ PostgreSQL
+                                                          migrate (prisma migrate deploy)
+```
+
+Imagens construídas a partir da raiz do monorepositório (`apps/api/Dockerfile` com os alvos
+`runtime` e `migrate`, `apps/web/Dockerfile` com o Caddy) e orquestradas pelo
+`docker-compose.prod.yml`. O passo a passo, as variáveis e a operação estão em
+[deploy.md](deploy.md); a revisão de segurança, em [security.md](security.md).
+
+O CI executa lint, formatação, tipos, testes unitários, integração e build; roda os testes E2E
+contra o build local; e constrói as imagens, sobe o ambiente de produção e repete os testes E2E
+contra ele. Tags `v*.*.*` publicam as imagens no GitHub Container Registry.

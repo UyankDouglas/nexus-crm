@@ -16,7 +16,7 @@ Clientes, oportunidades, funil de vendas, tarefas, equipe e resultados em uma ú
 ![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white)
 
 [Telas](#-telas) · [Destaques técnicos](#-destaques-técnicos) · [Como executar](#-como-executar) ·
-[Arquitetura](#-arquitetura) · [Testes](#-testes) · [Roadmap](#-roadmap)
+[Arquitetura](#-arquitetura) · [Testes](#-testes) · [Deploy](#-deploy) · [Roadmap](#-roadmap)
 
 <img src="docs/screenshots/dashboard-light.png" alt="Dashboard comercial do NEXUS CRM" width="100%" />
 
@@ -34,9 +34,9 @@ sistema executável ao fim de cada uma.
 Cada organização tem seus próprios usuários, dados e permissões. Um mesmo usuário pode participar
 de várias organizações, com um perfil diferente em cada uma.
 
-> **Status:** Fase 1 — Fundação ✅ · Fase 2 — Clientes e contatos ✅ · Fase 3 — Negociações e
-> funil de vendas ✅ · Fase 4 — Dashboard, tarefas e atividades ✅ · Fase 5 — Administração e
-> relatórios ✅ · Próxima: Fase 6 — Qualidade e produção.
+> **Status:** as seis fases estão concluídas — Fundação, Clientes e contatos, Negociações e funil
+> de vendas, Dashboard e atividades, Administração e relatórios, e Qualidade e produção (testes
+> E2E, revisão de segurança, CI/CD e deploy em Docker).
 
 ## 📸 Telas
 
@@ -165,9 +165,14 @@ de várias organizações, com um perfil diferente em cada uma.
   vigente desde julho de 2026), telefones e UFs, com formatação automática.
 - **Senhas com Argon2id** (parâmetros OWASP) e resposta em tempo constante para e-mails
   inexistentes, evitando enumeração de usuários.
-- **315 testes automatizados**, incluindo 107 testes de integração contra PostgreSQL real que
-  verificam os critérios de aceite de segurança e de negócio — e um pipeline de CI que roda tudo a
-  cada push.
+- **357 testes automatizados**, incluindo 112 de integração contra PostgreSQL real e 22
+  testes ponta a ponta com Playwright — rodados também contra os contêineres de produção no CI.
+- **Segurança verificada por testes.** Um teste lê todas as rotas da API e exige que cada uma
+  declare sua proteção; outro varre todas as rotas por ID com a sessão de outra organização e
+  confirma que nada vaza nem muda. Detalhes em [docs/security.md](docs/security.md).
+- **Pronto para produção:** imagens Docker enxutas, Caddy com HTTPS automático e CSP sem scripts
+  inline, migrations aplicadas antes da API subir e e-mails por SMTP —
+  [docs/deploy.md](docs/deploy.md).
 - **Nenhum dado fictício na interface.** Indicadores e relatórios vêm de agregações no banco; os
   dados de exemplo existem apenas na seed, identificada como demonstração.
 
@@ -178,8 +183,8 @@ de várias organizações, com um perfil diferente em cada uma.
 | Frontend       | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, shadcn/ui (Radix), React Router 8, TanStack Query 5, React Hook Form, Zod 4, dnd-kit, Recharts 3, Lucide |
 | Backend        | Node.js 24, NestJS 11, Prisma 7 (driver adapter `pg`), PostgreSQL 17, Swagger/OpenAPI, class-validator, Argon2, Helmet, Throttler                        |
 | Compartilhado  | `@nexus/shared`: perfis, matriz de permissões, schemas Zod e tipos da API                                                                                |
-| Qualidade      | pnpm workspaces, ESLint 10, Prettier, Jest + Supertest (API), Vitest + Testing Library (web), GitHub Actions                                             |
-| Infraestrutura | Docker Compose (PostgreSQL)                                                                                                                              |
+| Qualidade      | pnpm workspaces, ESLint 10, Prettier, Jest + Supertest (API), Vitest + Testing Library (web), Playwright (E2E), GitHub Actions                           |
+| Infraestrutura | Docker e Docker Compose, Caddy (HTTPS automático), GitHub Container Registry, nodemailer (SMTP)                                                          |
 
 As versões foram escolhidas após checagem de compatibilidade entre as bibliotecas — o motivo de
 cada escolha está em [docs/decisions.md](docs/decisions.md).
@@ -433,21 +438,24 @@ nexus-crm/
 │           ├── services/         # camada de acesso à API
 │           └── types/
 ├── packages/shared/              # tipos, RBAC e schemas compartilhados
-├── docker/                       # scripts de inicialização do Postgres
-├── docs/                         # arquitetura, decisões e capturas de tela
-└── docker-compose.yml
+├── e2e/                          # testes ponta a ponta (Playwright)
+├── docker/                       # inicialização do Postgres e configuração do Caddy
+├── docs/                         # arquitetura, decisões, segurança, deploy e capturas de tela
+├── docker-compose.yml            # PostgreSQL de desenvolvimento
+└── docker-compose.prod.yml       # produção: Caddy, API, migrations e PostgreSQL
 ```
 
 </details>
 
 ## 🧪 Testes
 
-| Suíte                   | Ferramentas                   | Testes | Cobertura principal                                                   |
-| ----------------------- | ----------------------------- | -----: | --------------------------------------------------------------------- |
-| `packages/shared`       | Vitest                        |     74 | RBAC, schemas, CPF/CNPJ, valores, datas, períodos, convites e funis   |
-| `apps/api` (unitários)  | Jest                          |     44 | CSRF, permissões, escopo, transições, agregações, exportação CSV/XLSX |
-| `apps/api` (integração) | Jest + Supertest + PostgreSQL |    107 | Critérios de aceite das Fases 1 a 5 (abaixo)                          |
-| `apps/web`              | Vitest + Testing Library      |     90 | Rotas, formulários, quadro, indicadores, convites, abas e exportação  |
+| Suíte                   | Ferramentas                   | Testes | Cobertura principal                                                         |
+| ----------------------- | ----------------------------- | -----: | --------------------------------------------------------------------------- |
+| `packages/shared`       | Vitest                        |     74 | RBAC, schemas, CPF/CNPJ, valores, datas, períodos, convites e funis         |
+| `apps/api` (unitários)  | Jest                          |     56 | Guards, proteção de todas as rotas, configuração, e-mail, exportação        |
+| `apps/api` (integração) | Jest + Supertest + PostgreSQL |    112 | Critérios de aceite das Fases 1 a 6 e varredura de isolamento (abaixo)      |
+| `apps/web`              | Vitest + Testing Library      |     93 | Rotas, formulários, quadro, indicadores, convites, abas, erros e exportação |
+| `e2e`                   | Playwright                    |     22 | Fluxos completos no navegador, por perfil, contra o build e contra o Docker |
 
 Critérios de aceite verificados pelos testes de integração:
 
@@ -477,15 +485,50 @@ Critérios de aceite verificados pelos testes de integração:
 - ✅ Excluir uma etapa move seus negócios com histórico; ganho e perda ficam sempre ao final.
 - ✅ A auditoria registra as ações importantes, é visível só ao administrador e o banco recusa alterações.
 - ✅ Relatórios e exportações (CSV e Excel) ficam restritos à gestão e consolidam apenas a organização ativa.
+- ✅ Nenhuma das 28 rotas por ID alcança registros de outra organização, e referências cruzadas em corpos de requisição são recusadas.
+- ✅ Falhas no envio de e-mail não revelam quais contas existem; convites avisam o administrador para reenviar.
+
+Fluxos verificados pelos testes E2E (Playwright):
+
+- ✅ Login com retorno à página pedida, erro de senha, logout que invalida o cookie e cadastro de organização.
+- ✅ Escolha de organização por quem participa de mais de uma.
+- ✅ Cadastro e busca de clientes; negócio criado, movido pelo menu e **pelo teclado** (com anúncios
+  para leitores de tela) e encerrado como perdido, com histórico.
+- ✅ Tarefas concluídas e interações registradas pela vendedora.
+- ✅ Permissões por perfil e isolamento entre organizações vistos pelo navegador e pela API.
+- ✅ Convite por e-mail aceito por uma pessoa nova, troca de perfil e etapas do funil com confirmação.
+- ✅ Relatórios por período e downloads reais em CSV e Excel.
+- ✅ Busca global pelo teclado, tema escuro persistente, layout no celular e página não encontrada.
 
 ```bash
 pnpm test               # unitários (shared, API e web)
 pnpm test:integration   # integração da API contra PostgreSQL (usa DATABASE_URL_TEST)
+pnpm build && pnpm test:e2e   # ponta a ponta: sobe API e frontend compilados e recria a seed
 ```
 
-Os testes de integração usam um banco separado (`nexus_crm_test`), limpo antes de cada teste. O
-[pipeline de CI](.github/workflows/ci.yml) executa lint, formatação, typecheck, testes unitários,
-testes de integração com PostgreSQL e build.
+Os testes de integração usam um banco separado (`nexus_crm_test`), limpo antes de cada teste; os
+testes E2E usam o mesmo banco, recriado pela seed de demonstração no início da execução. Na
+primeira vez, instale o navegador com `pnpm --filter @nexus/e2e exec playwright install chromium`
+(ou use um navegador instalado com `E2E_BROWSER_CHANNEL=msedge` ou `chrome`).
+
+O [pipeline de CI](.github/workflows/ci.yml) tem três jobs: (1) lint, formatação, typecheck,
+testes unitários, integração e build; (2) testes E2E contra o build; (3) build das imagens Docker,
+ambiente de produção com Caddy, verificação dos cabeçalhos de segurança e os testes E2E contra os
+contêineres.
+
+## 🚢 Deploy
+
+Qualquer servidor com Docker hospeda o NEXUS CRM com HTTPS automático:
+
+```bash
+cp .env.production.example .env.production   # domínio, senhas, segredo CSRF e SMTP
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+```
+
+O Caddy serve o frontend e repassa `/api` para a API (mesma origem), as migrations rodam antes de
+a API subir e só o Caddy publica portas. Um perfil `demo` opcional cria os dados fictícios para uma
+demonstração pública isolada. Tags `v*.*.*` publicam as imagens no GitHub Container Registry.
+Passo a passo, variáveis, backup e checklist em [docs/deploy.md](docs/deploy.md).
 
 ## 📜 Scripts
 
@@ -500,6 +543,7 @@ Executados na raiz do repositório:
 | `pnpm format` / `format:check` | Prettier                                                            |
 | `pnpm test`                    | Testes unitários (shared, API e web)                                |
 | `pnpm test:integration`        | Testes de integração da API contra PostgreSQL (`DATABASE_URL_TEST`) |
+| `pnpm test:e2e`                | Testes ponta a ponta com Playwright (requer `pnpm build`)           |
 | `pnpm db:up` / `db:down`       | Sobe/derruba o PostgreSQL no Docker                                 |
 | `pnpm db:migrate`              | Cria/aplica migrations em desenvolvimento (`prisma migrate dev`)    |
 | `pnpm db:deploy`               | Aplica migrations existentes (`prisma migrate deploy`)              |
@@ -523,14 +567,22 @@ Executados na raiz do repositório:
   rotas públicas de pré-visualização e aceite.
 - **Auditoria** gravada na transação de cada ação, sem senhas ou tokens, e somente de inclusão
   (trigger no PostgreSQL). Exportações são auditadas e protegidas contra _CSV injection_.
+- **Em produção**, o Caddy aplica CSP sem scripts inline, HSTS, `X-Frame-Options: DENY`,
+  `nosniff` e `Referrer-Policy: no-referrer`; o Swagger fica desligado por padrão.
+- **Dependências** sem vulnerabilidades conhecidas no `pnpm audit` (correções aplicadas via
+  `overrides`).
 - Segredos apenas em variáveis de ambiente, validadas na inicialização. Arquivos `.env` nunca são
   versionados — cada um tem um `.env.example` documentado.
 
-| Arquivo         | Uso                                                         |
-| --------------- | ----------------------------------------------------------- |
-| `.env`          | Docker Compose (usuário, senha, banco e porta do Postgres)  |
-| `apps/api/.env` | API: banco, segredo CSRF, sessão, rate limit, Swagger, seed |
-| `apps/web/.env` | Opcional: destino do proxy e URL da API                     |
+A revisão completa, com os achados desta fase e os riscos residuais, está em
+[docs/security.md](docs/security.md).
+
+| Arquivo           | Uso                                                         |
+| ----------------- | ----------------------------------------------------------- |
+| `.env`            | Docker Compose (usuário, senha, banco e porta do Postgres)  |
+| `apps/api/.env`   | API: banco, segredo CSRF, sessão, rate limit, Swagger, seed |
+| `apps/web/.env`   | Opcional: destino do proxy e URL da API                     |
+| `.env.production` | Produção com Docker: domínio, banco, segredo CSRF, SMTP     |
 
 ## 🗺 Roadmap
 
@@ -541,7 +593,10 @@ Executados na raiz do repositório:
 | 3    | Negociações: pipeline, etapas, Kanban com drag-and-drop, histórico     | ✅ Concluída |
 | 4    | Dashboard com indicadores reais, tarefas e atividades                  | ✅ Concluída |
 | 5    | Administração (convites, permissões, pipelines), relatórios, auditoria | ✅ Concluída |
-| 6    | Testes E2E (Playwright), revisão de segurança, deploy e documentação   | ⏳ Próxima   |
+| 6    | Testes E2E (Playwright), revisão de segurança, CI/CD, deploy e docs    | ✅ Concluída |
+
+Próximos passos possíveis, fora do escopo das seis fases: autenticação em dois fatores, metas
+comerciais, notificações em tempo real e exportações em segundo plano com filas.
 
 ## 👤 Autor
 
