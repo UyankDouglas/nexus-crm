@@ -1,23 +1,9 @@
-import {
-  DASHBOARD_PERIOD_LABELS,
-  DASHBOARD_PERIODS,
-  type DashboardPeriod,
-  DEFAULT_DASHBOARD_PERIOD,
-} from '@nexus/shared';
-import { CalendarRange, RefreshCw } from 'lucide-react';
-import { useMemo } from 'react';
-import { useSearchParams } from 'react-router';
+import { DASHBOARD_PERIOD_LABELS } from '@nexus/shared';
+import { RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/page-header';
 import { RoleBadge } from '@/components/role-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useCurrentUser, usePermission } from '@/features/auth/hooks';
 import { DistributionChart } from '@/features/dashboard/components/charts/distribution-chart';
 import { RevenueChart } from '@/features/dashboard/components/charts/revenue-chart';
@@ -25,13 +11,13 @@ import { SalesChart } from '@/features/dashboard/components/charts/sales-chart';
 import { SellersChart } from '@/features/dashboard/components/charts/sellers-chart';
 import { StagesChart } from '@/features/dashboard/components/charts/stages-chart';
 import { KpiGrid } from '@/features/dashboard/components/kpi-grid';
+import { PeriodSelect } from '@/features/dashboard/components/period-select';
 import {
   RecentActivitiesCard,
   RecentDealsCard,
   UpcomingTasksCard,
 } from '@/features/dashboard/components/recent-lists';
-import { useDashboard } from '@/features/dashboard/hooks';
-import { PERIOD_PARAM, parsePeriod, rangeFor } from '@/features/dashboard/period';
+import { useDashboard, usePeriodParam } from '@/features/dashboard/hooks';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { formatIsoDate, getFirstName, greeting } from '@/lib/format';
 
@@ -40,16 +26,9 @@ export function DashboardPage() {
   const me = useCurrentUser();
   const organization = me.activeOrganization!;
   const teamView = usePermission('deals:read-all');
-  const [searchParams, setSearchParams] = useSearchParams();
-  const period = parsePeriod(searchParams.get(PERIOD_PARAM));
-  const range = useMemo(() => rangeFor(period), [period]);
+  const { period, range, setPeriod } = usePeriodParam();
   const dashboard = useDashboard(range);
   const summary = dashboard.data;
-
-  const changePeriod = (value: string) =>
-    setSearchParams(value === DEFAULT_DASHBOARD_PERIOD ? {} : { [PERIOD_PARAM]: value }, {
-      replace: true,
-    });
 
   return (
     <div className="space-y-8">
@@ -63,19 +42,7 @@ export function DashboardPage() {
         actions={
           <>
             <RoleBadge role={organization.role} />
-            <Select value={period} onValueChange={changePeriod}>
-              <SelectTrigger className="w-44" aria-label="Período dos indicadores">
-                <CalendarRange />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {DASHBOARD_PERIODS.map((item: DashboardPeriod) => (
-                  <SelectItem key={item} value={item}>
-                    {DASHBOARD_PERIOD_LABELS[item]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <PeriodSelect value={period} onChange={setPeriod} label="Período dos indicadores" />
           </>
         }
       />

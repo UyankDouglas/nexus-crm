@@ -19,7 +19,7 @@ import { formatCurrency, formatCurrencyCompact, formatPercent } from '@/lib/form
 import { paths } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
-function KpiCard({
+export function KpiCard({
   label,
   icon: Icon,
   tone = 'bg-primary/10 text-primary',
@@ -45,7 +45,7 @@ function KpiCard({
   );
 }
 
-function KpiValue({ value, title }: { value: string | undefined; title?: string }) {
+export function KpiValue({ value, title }: { value: string | undefined; title?: string }) {
   if (value === undefined) return <Skeleton className="h-8 w-20" />;
   return (
     <p className="text-2xl font-semibold tracking-tight tabular-nums" title={title}>
@@ -66,7 +66,7 @@ function KpiLink({ to, children }: { to: string; children: ReactNode }) {
   );
 }
 
-function KpiHint({ children, className }: { children: ReactNode; className?: string }) {
+export function KpiHint({ children, className }: { children: ReactNode; className?: string }) {
   return <p className={cn('mt-auto text-xs text-muted-foreground', className)}>{children}</p>;
 }
 
