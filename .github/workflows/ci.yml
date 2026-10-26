@@ -69,3 +69,148 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  e2e:
+    name: Testes E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: nexus
+          POSTGRES_PASSWORD: nexus_ci_password
+          POSTGRES_DB: nexus_crm_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nexus -d nexus_crm_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Banco descartável do job, recriado pela seed de demonstração antes dos testes.
+      E2E_DATABASE_URL: postgresql://nexus:nexus_ci_password@localhost:5432/nexus_crm_e2e?schema=public
+      SEED_DEMO_PASSWORD: Demo-CI-2026
+      VITE_CONFIG_NATIVE_IGNORE_WARNING: 'true'
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Instalar o Chromium do Playwright
+        run: pnpm --filter @nexus/e2e exec playwright install --with-deps chromium
+
+      - name: Build
+        run: pnpm build
+
+      - name: Testes E2E
+        run: pnpm test:e2e
+
+      - name: Relatório do Playwright
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
+
+  docker:
+    name: Imagens Docker e ambiente de produção
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      COMPOSE: docker compose -f docker-compose.prod.yml --env-file .env.ci
+      SEED_DEMO_PASSWORD: Demo-CI-2026
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Variáveis do ambiente de produção (somente valores de teste)
+        run: |
+          cat > .env.ci <<EOF
+          APP_URL=http://localhost:8080
+          SITE_ADDRESS=:80
+          HTTP_PORT=8080
+          HTTPS_PORT=8443
+          POSTGRES_PASSWORD=ci-postgres-password
+          CSRF_SECRET=ci-segredo-csrf-com-mais-de-32-caracteres-para-producao
+          RATE_LIMIT_AUTH_MAX=200
+          SEED_DEMO_PASSWORD=$SEED_DEMO_PASSWORD
+          EOF
+
+      - name: Build das imagens
+        run: $COMPOSE build
+
+      - name: Subir os contêineres
+        run: $COMPOSE up -d
+
+      - name: Aguardar a aplicação
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/api/health; then exit 0; fi
+            sleep 2
+          done
+          $COMPOSE ps
+          exit 1
+
+      - name: Dados de demonstração
+        run: $COMPOSE --profile demo run --rm seed
+
+      - name: Cabeçalhos de segurança e Swagger desligado
+        run: |
+          curl -fsSI http://localhost:8080/ | tee headers.txt
+          grep -qi '^content-security-policy:' headers.txt
+          grep -qi '^x-frame-options: DENY' headers.txt
+          grep -qi '^x-content-type-options: nosniff' headers.txt
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/docs)" = 404
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalar dependências dos testes
+        run: pnpm install --frozen-lockfile --filter @nexus/e2e
+
+      - name: Instalar o Chromium do Playwright
+        run: pnpm --filter @nexus/e2e exec playwright install --with-deps chromium
+
+      - name: Testes E2E contra os contêineres de produção
+        run: pnpm test:e2e
+        env:
+          E2E_BASE_URL: http://localhost:8080
+
+      - name: Logs dos contêineres
+        if: failure()
+        run: $COMPOSE logs
+
+      - name: Relatório do Playwright
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-producao
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
+
+      - name: Encerrar os contêineres
+        if: always()
+        run: $COMPOSE down -v
