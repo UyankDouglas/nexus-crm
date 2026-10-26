@@ -35,8 +35,8 @@ Cada organização tem seus próprios usuários, dados e permissões. Um mesmo u
 de várias organizações, com um perfil diferente em cada uma.
 
 > **Status:** Fase 1 — Fundação ✅ · Fase 2 — Clientes e contatos ✅ · Fase 3 — Negociações e
-> funil de vendas ✅ · Fase 4 — Dashboard, tarefas e atividades ✅ · Próxima: Fase 5 —
-> Administração e relatórios.
+> funil de vendas ✅ · Fase 4 — Dashboard, tarefas e atividades ✅ · Fase 5 — Administração e
+> relatórios ✅ · Próxima: Fase 6 — Qualidade e produção.
 
 ## 📸 Telas
 
@@ -50,6 +50,14 @@ de várias organizações, com um perfil diferente em cada uma.
     <td align="center"><sub>Últimas negociações, próximas tarefas e atividades recentes</sub></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/screenshots/reports.png" alt="Relatórios comerciais" /></td>
+    <td width="50%"><img src="docs/screenshots/reports-tables.png" alt="Desempenho por vendedor e valor do pipeline" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Relatórios: receita, conversão, ticket médio, previsão ponderada e motivos de perda</sub></td>
+    <td align="center"><sub>Desempenho por vendedor e pipeline, com exportação em CSV e Excel</sub></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="docs/screenshots/pipeline-board.png" alt="Funil de vendas em Kanban" /></td>
     <td width="50%"><img src="docs/screenshots/tasks.png" alt="Tarefas com prazos e prioridades" /></td>
   </tr>
@@ -60,7 +68,6 @@ de várias organizações, com um perfil diferente em cada uma.
   <tr>
     <td width="50%"><img src="docs/screenshots/activities.png" alt="Histórico de atividades" /></td>
     <td width="50%"><img src="docs/screenshots/deal-detail.png" alt="Detalhe do negócio com histórico" /></td>
-    <td width="50%"><img src="docs/screenshots/deal-lost-dialog.png" alt="Registro do motivo da perda" /></td>
   </tr>
   <tr>
     <td align="center"><sub>Histórico de ligações, reuniões, e-mails e observações</sub></td>
@@ -83,27 +90,43 @@ de várias organizações, com um perfil diferente em cada uma.
     <td align="center"><sub>Cadastro e edição em drawer, com validação de CPF/CNPJ</sub></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/screenshots/settings.png" alt="Gestão de membros" /></td>
+    <td width="50%"><img src="docs/screenshots/settings-pipelines.png" alt="Configuração dos funis" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Membros: troca de perfil e suspensão de acesso</sub></td>
+    <td align="center"><sub>Funis: etapas, ordem e probabilidade de fechamento</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/settings-permissions.png" alt="Matriz de permissões por perfil" /></td>
+    <td width="50%"><img src="docs/screenshots/settings-audit.png" alt="Trilha de auditoria" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>A mesma matriz de permissões usada pela API</sub></td>
+    <td align="center"><sub>Auditoria das ações importantes: quem fez, o quê e quando</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/accept-invitation.png" alt="Aceite de convite" /></td>
     <td width="50%"><img src="docs/screenshots/command-menu.png" alt="Busca global com Ctrl+K" /></td>
-    <td width="50%"><img src="docs/screenshots/dashboard-dark.png" alt="Dashboard no tema escuro" /></td>
   </tr>
   <tr>
+    <td align="center"><sub>Convite por e-mail: a pessoa cria a conta e entra na organização</sub></td>
     <td align="center"><sub>Busca global de clientes, negócios e ações (<kbd>Ctrl</kbd> + <kbd>K</kbd>)</sub></td>
-    <td align="center"><sub>Tema escuro</sub></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/screenshots/dashboard-dark.png" alt="Dashboard no tema escuro" /></td>
     <td width="50%"><img src="docs/screenshots/login.png" alt="Tela de login" /></td>
-    <td width="50%"><img src="docs/screenshots/select-organization.png" alt="Seleção de organização" /></td>
   </tr>
   <tr>
+    <td align="center"><sub>Tema escuro</sub></td>
     <td align="center"><sub>Login com sessão segura em cookie HttpOnly</sub></td>
-    <td align="center"><sub>Usuário com mais de uma organização escolhe onde trabalhar</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/settings.png" alt="Configurações da organização" /></td>
+    <td width="50%"><img src="docs/screenshots/select-organization.png" alt="Seleção de organização" /></td>
     <td width="50%" align="center"><img src="docs/screenshots/mobile-dashboard.png" alt="Dashboard no celular" width="48%" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>Configurações: organização, membros e perfis de acesso</sub></td>
+    <td align="center"><sub>Usuário com mais de uma organização escolhe onde trabalhar</sub></td>
     <td align="center"><sub>Layout responsivo</sub></td>
   </tr>
 </table>
@@ -131,15 +154,22 @@ de várias organizações, com um perfil diferente em cada uma.
   por período, negócios por etapa, performance por vendedor e distribuição com `count`, `aggregate`
   e `groupBy`, usando os mesmos filtros de escopo das listagens — o vendedor vê a própria carteira,
   a gestão vê a equipe. Períodos e prazos seguem o fuso de Brasília, não o relógio do servidor.
+- **Administração auditável.** Convites por e-mail com token de uso único (só o hash fica no
+  banco), troca de perfil e suspensão com proteção do último administrador, e configuração de
+  funis que move negócios com histórico ao excluir etapas. Cada ação importante entra na
+  **auditoria na mesma transação**, e uma trigger torna a trilha somente de inclusão.
+- **Relatórios exportáveis sem dependências.** CSV pronto para o Excel em português e XLSX gerado
+  pela própria API (planilha tipada, com moeda, porcentagem e datas), com proteção contra _CSV
+  injection_ e registro de cada exportação.
 - **Domínio brasileiro levado a sério**: validação de CPF e de **CNPJ alfanumérico** (formato
   vigente desde julho de 2026), telefones e UFs, com formatação automática.
 - **Senhas com Argon2id** (parâmetros OWASP) e resposta em tempo constante para e-mails
   inexistentes, evitando enumeração de usuários.
-- **270 testes automatizados**, incluindo 88 testes de integração contra PostgreSQL real que
+- **315 testes automatizados**, incluindo 107 testes de integração contra PostgreSQL real que
   verificam os critérios de aceite de segurança e de negócio — e um pipeline de CI que roda tudo a
   cada push.
-- **Nenhum dado fictício na interface.** Indicadores vêm de agregações no banco; os que dependem de
-  módulos futuros mostram de onde virão os dados, em vez de números inventados.
+- **Nenhum dado fictício na interface.** Indicadores e relatórios vêm de agregações no banco; os
+  dados de exemplo existem apenas na seed, identificada como demonstração.
 
 ## 🧰 Stack
 
@@ -199,10 +229,10 @@ Instale o PostgreSQL 17, crie os bancos `nexus_crm` e `nexus_crm_test` e ajuste 
 <details>
 <summary><strong>E-mails em desenvolvimento</strong></summary>
 
-Ainda não há provedor SMTP (previsto para uma fase futura). Em desenvolvimento, os e-mails — como
-o de redefinição de senha — são gravados como arquivos `.eml` em `apps/api/.mail-outbox/` (fora do
-Git). Abra o arquivo mais recente para copiar o link de redefinição. O conteúdo nunca é escrito nos
-logs, pois contém tokens.
+Ainda não há provedor SMTP (previsto para uma fase futura). Em desenvolvimento, os e-mails — de
+redefinição de senha e de convite — são gravados como arquivos `.eml` em `apps/api/.mail-outbox/`
+(fora do Git). Abra o arquivo mais recente para copiar o link. O conteúdo nunca é escrito nos logs,
+pois contém tokens.
 
 </details>
 
@@ -222,14 +252,39 @@ Criadas por `pnpm db:seed` — **dados fictícios, para uso exclusivamente local
 A seed também cria **27 clientes fictícios** com contatos — 23 na Horizonte (distribuídos entre
 Juliana, Rafael e Carlos, com 4 ainda sem responsável) e 4 na Vértice —, **49 negócios** (45 na
 Horizonte, 20 deles encerrados ao longo do último ano para alimentar os gráficos, e 4 na Vértice),
-**19 tarefas** com prazos relativos ao dia da execução (atrasadas, do dia e futuras) e **25
-atividades** registradas. Entre como vendedor e como gestor para comparar as carteiras.
+**19 tarefas** com prazos relativos ao dia da execução (atrasadas, do dia e futuras), **25
+atividades** registradas, um **convite pendente** e alguns registros de **auditoria**. Entre como
+vendedor, gestor e administrador para comparar o que cada perfil vê.
+
+Para testar o aceite de convite, entre como Ana, abra **Configurações → Convites**, use
+**Reenviar** no convite pendente e abra o link do `.eml` mais recente (veja "E-mails em
+desenvolvimento" acima).
 
 A seed é idempotente — recria os dados comerciais das organizações de demonstração a cada execução
 — e se recusa a rodar com `NODE_ENV=production` (exceto com `DEMO_MODE=true`, para um ambiente
 público isolado de demonstração).
 
 ## 🧩 Funcionalidades
+
+### Fase 5 — Administração e relatórios
+
+- **Configurações em abas**: organização, membros, convites, funis, permissões e auditoria — cada
+  perfil vê apenas as abas que pode usar.
+- **Gestão de membros**: o administrador troca o perfil e suspende ou reativa acessos (com efeito
+  imediato). Ninguém altera o próprio vínculo e a organização nunca fica sem administrador ativo.
+- **Convites por e-mail** com perfil definido, validade de 7 dias, reenvio e cancelamento. Quem não
+  tem conta cria nome e senha pelo link e já entra; quem tem conta ganha o acesso à organização.
+- **Permissões**: matriz por perfil — a mesma usada pela API — com o escopo de carteira do vendedor.
+- **Configuração de funis**: novos funis, funil padrão, etapas com probabilidade, reordenação e
+  exclusão com destino obrigatório para os negócios da etapa (registrado no histórico). O cadastro
+  de negócios agrupa as etapas por funil.
+- **Relatórios** (gestão e administração) com filtro de período: receita ganha, taxa de conversão,
+  ticket médio, valor perdido, pipeline em aberto e **previsão ponderada**; receita por período,
+  motivos de perda, desempenho por vendedor (com atividades e tarefas concluídas), valor do pipeline
+  por etapa e negócios ganhos e perdidos com filtro e paginação.
+- **Exportação** de cada relatório em **CSV** e **Excel (.xlsx)**.
+- **Auditoria** de alterações de membros e perfis, convites, funis e etapas, exclusões de clientes e
+  negócios, reaberturas e exportações, com filtros por tipo de ação e pessoa.
 
 ### Fase 4 — Dashboard, tarefas e atividades
 
@@ -303,7 +358,8 @@ público isolado de demonstração).
 - **Dashboard inicial** com dados reais do PostgreSQL (substituído pelo painel comercial na Fase 4).
 - **Configurações**: nome da organização (somente administradores), membros (administradores e
   gestores) e descrição dos perfis.
-- Módulos futuros (como Relatórios) exibem o escopo planejado, sem simular operações.
+- Módulos futuros exibiam o escopo planejado, sem simular operações (os relatórios chegaram na
+  Fase 5).
 - **Swagger** em `/api/docs` e **health check** em `/api/health`.
 
 ## 🏗 Arquitetura
@@ -340,8 +396,9 @@ sequenceDiagram
 ```
 
 - **Monorepositório** com pnpm workspaces: `apps/web`, `apps/api` e `packages/shared`.
-- **API modular** (`auth`, `organizations`, `customers`, `deals`, `tasks`, `activities`,
-  `dashboard`, `mail`, `health`), com regras de negócio nos services e controllers finos. Todo
+- **API modular** (`auth`, `organizations`, `invitations`, `customers`, `deals`, `tasks`,
+  `activities`, `dashboard`, `reports`, `audit`, `mail`, `health`), com regras de negócio nos
+  services e controllers finos. Todo
   acesso a clientes, negócios, tarefas e atividades passa por um filtro de escopo (organização
   ativa + carteira do usuário).
 - **Frontend** separado em `services` (acesso à API), `features` (hooks e componentes por domínio),
@@ -385,12 +442,12 @@ nexus-crm/
 
 ## 🧪 Testes
 
-| Suíte                   | Ferramentas                   | Testes | Cobertura principal                                               |
-| ----------------------- | ----------------------------- | -----: | ----------------------------------------------------------------- |
-| `packages/shared`       | Vitest                        |     69 | RBAC, schemas, CPF/CNPJ, valores, datas, períodos e agrupamentos  |
-| `apps/api` (unitários)  | Jest                          |     39 | CSRF, permissões, escopo, transições, fuso de negócio, agregações |
-| `apps/api` (integração) | Jest + Supertest + PostgreSQL |     88 | Critérios de aceite das Fases 1 a 4 (abaixo)                      |
-| `apps/web`              | Vitest + Testing Library      |     74 | Rotas, login, formulários, filtros, quadro, prazos e indicadores  |
+| Suíte                   | Ferramentas                   | Testes | Cobertura principal                                                   |
+| ----------------------- | ----------------------------- | -----: | --------------------------------------------------------------------- |
+| `packages/shared`       | Vitest                        |     74 | RBAC, schemas, CPF/CNPJ, valores, datas, períodos, convites e funis   |
+| `apps/api` (unitários)  | Jest                          |     44 | CSRF, permissões, escopo, transições, agregações, exportação CSV/XLSX |
+| `apps/api` (integração) | Jest + Supertest + PostgreSQL |    107 | Critérios de aceite das Fases 1 a 5 (abaixo)                          |
+| `apps/web`              | Vitest + Testing Library      |     90 | Rotas, formulários, quadro, indicadores, convites, abas e exportação  |
 
 Critérios de aceite verificados pelos testes de integração:
 
@@ -415,6 +472,11 @@ Critérios de aceite verificados pelos testes de integração:
 - ✅ Só o autor edita uma atividade; a gestão modera exclusões; datas futuras são recusadas.
 - ✅ Excluir um negócio preserva tarefas e atividades no cliente; excluir o cliente as remove.
 - ✅ O dashboard respeita o escopo de cada perfil, o período informado e o isolamento entre organizações.
+- ✅ Só o administrador gerencia membros, convites e funis; ninguém altera o próprio vínculo.
+- ✅ O convite cria a conta (ou só o vínculo, se ela existir); links reenviados, cancelados, vencidos ou usados não abrem.
+- ✅ Excluir uma etapa move seus negócios com histórico; ganho e perda ficam sempre ao final.
+- ✅ A auditoria registra as ações importantes, é visível só ao administrador e o banco recusa alterações.
+- ✅ Relatórios e exportações (CSV e Excel) ficam restritos à gestão e consolidam apenas a organização ativa.
 
 ```bash
 pnpm test               # unitários (shared, API e web)
@@ -457,6 +519,10 @@ Executados na raiz do repositório:
 - Validação estrita de DTOs (`whitelist` + `forbidNonWhitelisted`), Helmet, CORS restrito,
   `Cache-Control: no-store`, erros padronizados sem detalhes internos e logs sem corpo, cookies ou
   tokens.
+- **Convites** com token de 256 bits de uso único (o banco guarda só o hash) e rate limit nas
+  rotas públicas de pré-visualização e aceite.
+- **Auditoria** gravada na transação de cada ação, sem senhas ou tokens, e somente de inclusão
+  (trigger no PostgreSQL). Exportações são auditadas e protegidas contra _CSV injection_.
 - Segredos apenas em variáveis de ambiente, validadas na inicialização. Arquivos `.env` nunca são
   versionados — cada um tem um `.env.example` documentado.
 
@@ -474,8 +540,8 @@ Executados na raiz do repositório:
 | 2    | Clientes e contatos: CRUD, busca, filtros, paginação, permissões       | ✅ Concluída |
 | 3    | Negociações: pipeline, etapas, Kanban com drag-and-drop, histórico     | ✅ Concluída |
 | 4    | Dashboard com indicadores reais, tarefas e atividades                  | ✅ Concluída |
-| 5    | Administração (convites, permissões, pipelines), relatórios, auditoria | ⏳ Próxima   |
-| 6    | Testes E2E (Playwright), revisão de segurança, deploy e documentação   | Planejada    |
+| 5    | Administração (convites, permissões, pipelines), relatórios, auditoria | ✅ Concluída |
+| 6    | Testes E2E (Playwright), revisão de segurança, deploy e documentação   | ⏳ Próxima   |
 
 ## 👤 Autor
 

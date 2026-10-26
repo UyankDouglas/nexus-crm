@@ -334,3 +334,98 @@ representa essa forma; a regra explícita no serviço evita divergência entre s
 
 **Consequências.** O histórico de relacionamento sobrevive à exclusão de oportunidades, e o banco
 continua impedindo referências órfãs ou entre organizações.
+
+---
+
+## ADR-020 — Perfis fixos, com a matriz de permissões no código
+
+**Data:** 2026-10-26
+
+**Contexto.** O administrador precisa "definir permissões". Perfis totalmente customizáveis
+(permissões por usuário ou perfis criados pela organização) multiplicam os casos a testar e tornam
+a autorização difícil de auditar.
+
+**Decisão.** Os três perfis (Administrador, Gestor Comercial e Vendedor) são fixos, com a matriz
+em `packages/shared`, compartilhada pela API e pela interface. O administrador define as
+permissões de cada pessoa escolhendo o perfil, e a aba "Permissões" mostra a matriz real. O
+escopo por carteira (o vendedor vê só o que é seu) continua nas regras de cada serviço.
+
+**Consequências.** A autorização é previsível e coberta por testes; mudar o que um perfil pode
+fazer é uma alteração de código revisada. Perfis personalizados por organização podem vir depois
+sem quebrar o formato das permissões.
+
+---
+
+## ADR-021 — Convites por link com token de uso único
+
+**Data:** 2026-10-26
+
+**Contexto.** O administrador precisa trazer pessoas para a organização sem conhecer ou definir a
+senha delas, e o convite não pode virar uma porta para contas alheias.
+
+**Decisão.** O convite gera um token aleatório de 256 bits enviado por e-mail; o banco guarda só
+o hash SHA-256, com validade de 7 dias. Reenviar troca o token; cancelar invalida o link. O aceite
+consome o convite de forma atômica e, se o e-mail ainda não tiver conta, cria a conta com nome e
+senha escolhidos pela pessoa (e já abre a sessão). Se a conta existir, apenas cria o vínculo — a
+pessoa entra com a própria senha. Um índice único parcial impede dois convites pendentes para o
+mesmo e-mail.
+
+**Consequências.** Quem tem o link prova a posse do e-mail, sem senhas trafegando pelo
+administrador. Vazamentos do banco não expõem links válidos. Sem provedor SMTP, o e-mail vai para
+a caixa de saída local (ADR-006).
+
+---
+
+## ADR-022 — Auditoria somente de inclusão, gravada na transação da ação
+
+**Data:** 2026-10-26
+
+**Contexto.** A trilha de auditoria precisa ser confiável: não pode registrar ações que falharam,
+perder ações que aconteceram ou ser alterada depois.
+
+**Decisão.** O registro é gravado com o mesmo cliente de transação da ação auditada. Uma trigger
+no PostgreSQL recusa `UPDATE` em `audit_logs`; a única exceção é a anonimização do autor feita pela
+própria FK (`ON DELETE SET NULL`), com todas as demais colunas idênticas. O resumo é um texto
+legível montado no momento da ação (nomes podem mudar depois), e os metadados nunca contêm
+segredos.
+
+**Consequências.** Ação e registro são consistentes, e nem um bug na API consegue reescrever o
+histórico. A exclusão de registros antigos (retenção) continua possível com `DELETE`, como uma
+operação explícita de manutenção.
+
+---
+
+## ADR-023 — Exportação CSV e XLSX sem dependências
+
+**Data:** 2026-10-26
+
+**Contexto.** Os relatórios precisam ser exportados em CSV e Excel. Bibliotecas de planilha são
+grandes, têm histórico de vulnerabilidades e trazem recursos (leitura, fórmulas, gráficos) que o
+projeto não usa.
+
+**Decisão.** A API escreve os arquivos: CSV no formato que o Excel em português abre direto (`;`,
+vírgula decimal, BOM) e XLSX mínimo (SpreadsheetML compactado com `zlib` do Node), com valores
+tipados e formatos de moeda, porcentagem e data. Colunas são declaradas uma vez por relatório e
+servem aos dois formatos. Campos de texto são protegidos contra _CSV injection_ e caracteres
+inválidos em XML são removidos.
+
+**Consequências.** Nenhuma dependência nova e controle total do formato; os testes conferem o ZIP
+(CRC de cada arquivo) e o XML gerado. Recursos avançados de planilha ficam fora do escopo.
+
+---
+
+## ADR-024 — Excluir etapas exige destino para os negócios
+
+**Data:** 2026-10-26
+
+**Contexto.** O administrador configura as etapas dos funis, mas negócios em andamento não podem
+ficar sem etapa nem perder o histórico.
+
+**Decisão.** Ganho e perda são etapas fixas ao final de cada funil (só o nome muda). Etapas em
+andamento só são excluídas se restar pelo menos uma; se tiverem negócios, a API exige uma etapa de
+destino do mesmo funil e move os negócios na mesma transação, registrando a movimentação no
+histórico. Funis só são excluídos sem negócios e quando não são o padrão.
+
+**Consequências.** O quadro, os indicadores e o histórico continuam coerentes após qualquer
+mudança de configuração. O histórico guarda os nomes das etapas da época, então renomear ou
+excluir uma etapa não reescreve o passado.

@@ -18,23 +18,25 @@ própria origem, então os cookies de sessão são _first-party_ e não há CORS
 
 ### Módulos
 
-| Módulo          | Responsabilidade                                                                  |
-| --------------- | --------------------------------------------------------------------------------- |
-| `config`        | Valida variáveis de ambiente com Zod na inicialização; acesso tipado              |
-| `prisma`        | `PrismaService` (Prisma 7 com driver adapter `@prisma/adapter-pg`)                |
-| `auth`          | Cadastro, login, logout, sessão, troca de organização, CSRF, redefinição de senha |
-| `organizations` | Resumo, atualização e membros da organização ativa                                |
-| `customers`     | Clientes e contatos: listagem filtrada, CRUD, distribuição, tags e totais         |
-| `deals`         | Funis, etapas e negócios: quadro Kanban, movimentação com histórico e totais      |
-| `tasks`         | Tarefas com responsável, prazo, prioridade e status, ligadas a clientes/negócios  |
-| `activities`    | Histórico de interações: ligações, reuniões, e-mails e observações                |
-| `dashboard`     | Indicadores, séries por período e rankings calculados no banco                    |
-| `mail`          | Envio de e-mails (caixa de saída em arquivo durante o desenvolvimento)            |
-| `health`        | Verificação de disponibilidade da API e do banco                                  |
+| Módulo          | Responsabilidade                                                                   |
+| --------------- | ---------------------------------------------------------------------------------- |
+| `config`        | Valida variáveis de ambiente com Zod na inicialização; acesso tipado               |
+| `prisma`        | `PrismaService` (Prisma 7 com driver adapter `@prisma/adapter-pg`)                 |
+| `auth`          | Cadastro, login, logout, sessão, troca de organização, CSRF, redefinição de senha  |
+| `organizations` | Resumo e atualização da organização ativa; membros, perfis e suspensão             |
+| `invitations`   | Convites por e-mail: envio, reenvio, cancelamento, pré-visualização e aceite       |
+| `customers`     | Clientes e contatos: listagem filtrada, CRUD, distribuição, tags e totais          |
+| `deals`         | Funis, etapas e negócios: quadro Kanban, histórico, totais e configuração de funis |
+| `tasks`         | Tarefas com responsável, prazo, prioridade e status, ligadas a clientes/negócios   |
+| `activities`    | Histórico de interações: ligações, reuniões, e-mails e observações                 |
+| `dashboard`     | Indicadores, séries por período e rankings calculados no banco                     |
+| `reports`       | Relatórios comerciais e exportação em CSV e Excel                                  |
+| `audit`         | Trilha de auditoria (global: os demais módulos registram ações nela)               |
+| `mail`          | Envio de e-mails (caixa de saída em arquivo durante o desenvolvimento)             |
+| `health`        | Verificação de disponibilidade da API e do banco                                   |
 
-Novos domínios (relatórios, auditoria…) seguem o mesmo formato do módulo de clientes: `controller`
-fino, `service` com as regras, DTOs validados e acesso a dados sempre filtrado pelo escopo do
-contexto autenticado. IDs de rota são validados como UUID — malformados respondem 404 sem consultar
+Todos os domínios seguem o mesmo formato: `controller` fino, `service` com as regras, DTOs
+validados e acesso a dados sempre filtrado pelo escopo do contexto autenticado. IDs de rota são validados como UUID — malformados respondem 404 sem consultar
 o banco.
 
 ### Pipeline de uma requisição
@@ -165,6 +167,54 @@ chamada, calculado sobre os **mesmos escopos** das listagens:
   com grupos vazios preenchidos com zero. As funções de agregação são puras e testadas sem banco.
 - Intervalos inválidos, invertidos ou maiores que 731 dias respondem 400.
 
+### Administração
+
+- **Membros** (`PATCH /organizations/current/members/:userId`, `members:manage`): troca de perfil
+  e suspensão/reativação. Ninguém altera o próprio vínculo, e a organização nunca fica sem um
+  administrador ativo. A suspensão tem efeito imediato, pois o vínculo é revalidado a cada
+  requisição.
+- **Convites** (`/organizations/current/invitations`): o link leva um token aleatório de 256 bits;
+  o banco guarda só o hash SHA-256, com validade de 7 dias. Reenviar gera um novo token (o link
+  anterior deixa de valer). Um índice único parcial garante no máximo um convite pendente por
+  e-mail. As rotas públicas `POST /invitations/preview` e `POST /invitations/accept` têm rate
+  limit; o aceite consome o convite com um `updateMany` condicional (sem corrida entre dois
+  aceites). Sem conta, a pessoa define nome e senha e já entra com sessão; com conta, o vínculo é
+  criado e ela entra com a própria senha.
+- **Funis** (`/pipelines`, `pipelines:manage`): até 10 funis e 12 etapas em andamento por funil.
+  Etapas em andamento podem ser criadas, renomeadas, reordenadas (a lista precisa conter todas) e
+  excluídas; ganho e perda ficam sempre ao final, com probabilidade fixa. Excluir uma etapa com
+  negócios exige uma etapa de destino: os negócios são movidos com registro no histórico, na mesma
+  transação. Funis só são excluídos sem negócios e se não forem o padrão.
+
+### Auditoria
+
+`AuditService.record(tx, ator, entrada)` é chamado **dentro da transação** da própria ação: se a
+ação falhar, o registro não existe; se o registro falhar, a ação é desfeita. São auditados
+alterações da organização, perfis e suspensões, convites (envio, reenvio, cancelamento e aceite),
+funis e etapas, exclusões de clientes e negócios, reabertura de negócios encerrados e exportações.
+Cada registro guarda ator, ação, entidade, um resumo legível e metadados em JSON — nunca senhas ou
+tokens. A tabela é **somente de inclusão**: uma trigger recusa `UPDATE` (a única exceção é a
+anonimização do autor pela FK quando um usuário é excluído). `GET /audit` (`audit:read`) filtra
+por categoria, pessoa e período.
+
+### Relatórios e exportação
+
+`GET /reports/overview` reúne, sobre os mesmos escopos do dashboard: totais do período (receita,
+ganhos, perdas, conversão e ticket médio), desempenho por vendedor (inclui atividades registradas e
+tarefas concluídas), receita por período, valor do pipeline por etapa com **previsão ponderada**
+(valor × probabilidade) e principais motivos de perda. `GET /reports/closed-deals` lista os
+negócios encerrados com filtro de resultado e paginação.
+
+`GET /reports/export?type=…&format=csv|xlsx` gera o arquivo no servidor e registra a exportação na
+auditoria:
+
+- **CSV** com separador `;`, vírgula decimal, datas `DD/MM/AAAA` e BOM UTF-8 (abre corretamente no
+  Excel em português). Campos que começam com `=`, `+`, `-`, `@`, tabulação ou retorno recebem um
+  apóstrofo, neutralizando _CSV injection_.
+- **XLSX** escrito pela própria API (SpreadsheetML compactado com `zlib`): números, moeda,
+  porcentagem e datas como valores tipados, cabeçalho em negrito e congelado, larguras de coluna.
+- Cada exportação é limitada a 10.000 linhas.
+
 ### RBAC
 
 A matriz de permissões vive em `packages/shared/src/permissions.ts` e é a mesma usada pela API
@@ -175,6 +225,11 @@ A matriz de permissões vive em `packages/shared/src/permissions.ts` e é a mesm
 | `organization:read`   |       ✓       |        ✓         |          ✓           |
 | `organization:update` |       ✓       |                  |                      |
 | `members:read`        |       ✓       |        ✓         |                      |
+| `members:manage`      |       ✓       |                  |                      |
+| `pipelines:manage`    |       ✓       |                  |                      |
+| `reports:read`        |       ✓       |        ✓         |                      |
+| `reports:export`      |       ✓       |        ✓         |                      |
+| `audit:read`          |       ✓       |                  |                      |
 | `customers:read`      |       ✓       |        ✓         | ✓ (própria carteira) |
 | `customers:read-all`  |       ✓       |        ✓         |                      |
 | `customers:create`    |       ✓       |        ✓         |          ✓           |
@@ -217,6 +272,9 @@ deals ─< deal_stage_history                   (etapas de origem/destino, autor
 
 organization_members ─< tasks >─ customers?, deals?   (assignee_id, due_date, status, priority)
 organization_members ─< activities >─ customers, deals? (author_id, type, occurred_at)
+
+organizations ─< invitations   (email, role, token_hash, expires_at, accepted_at, revoked_at)
+organizations ─< audit_logs    (actor_id, action, entity_type, entity_id, summary, metadata)
 ```
 
 - IDs **UUIDv7** (ordenáveis no tempo, bons para índices).
@@ -241,6 +299,10 @@ organization_members ─< activities >─ customers, deals? (author_id, type, oc
   prazo (listas de pendências) e por cliente e data (linha do tempo).
 - Índices por `(organization_id, …)` para nome, status, responsável, atualização e empresa; índice
   **GIN** nas tags (filtro com `@>`).
+- **Convites**: e-mail sempre em minúsculas (CHECK), aceito _ou_ cancelado (nunca os dois) e
+  índice único parcial por `(organization_id, email)` entre os pendentes.
+- **Auditoria**: índices por data, ação e autor dentro da organização; trigger `BEFORE UPDATE`
+  torna a tabela somente de inclusão.
 
 ## Frontend (apps/web)
 
@@ -275,6 +337,14 @@ organization_members ─< activities >─ customers, deals? (author_id, type, oc
 - **Tarefas e atividades** vivem em uma página com abas (`?aba=atividades`), filtros na URL e
   versões compactas reutilizadas no cliente, no detalhe do negócio e no dashboard. O sino da
   topbar lista as tarefas do usuário atrasadas e do dia.
+- **Configurações** em abas na URL (`?aba=funis`): organização, membros, convites, funis,
+  permissões e auditoria. Itens de menu e abas declaram a permissão necessária (`useCanSee`); a
+  API continua validando cada operação.
+- **Relatórios** reutilizam o período do dashboard (`?periodo=`). A exportação baixa o arquivo
+  gerado pela API (`apiClient.download` → `Blob` → link temporário), com o nome sugerido no
+  `Content-Disposition`.
+- **Aceite de convite** (`/convite?token=…`) funciona com ou sem sessão: sem conta, cria a conta e
+  descarta o cache da sessão anterior antes de entrar.
 - Drawers e diálogos retêm o último conteúdo (`useRetainedValue`) para não encolherem vazios na
   animação de fechamento.
 - Tema claro/escuro aplicado antes da renderização (script em `index.html`) para evitar _flash_.
