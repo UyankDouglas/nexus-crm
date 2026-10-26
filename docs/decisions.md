@@ -262,3 +262,75 @@ quantos negócios o cliente tem. Os negócios precisam ser excluídos ou transfe
 
 **Consequências.** Nenhum resultado comercial some como efeito colateral. Quando houver arquivamento
 de clientes, ele será a alternativa recomendada à exclusão.
+
+---
+
+## ADR-016 — Fuso de negócio único para prazos e períodos
+
+**Data:** 2026-10-26
+
+**Contexto.** "Atrasada", "vence hoje" e "vendas de outubro" dependem de quando o dia começa. Um
+negócio ganho às 22h de 31/10 em Brasília já é 1º/11 em UTC.
+
+**Decisão.** A API usa o fuso `America/Sao_Paulo` (`BUSINESS_TIME_ZONE`) para calcular o "hoje"
+das tarefas e para converter intervalos de datas em instantes `[início, fim)`. A conversão usa
+`Intl.DateTimeFormat` (com segunda passada para dias com horário de verão), sem dependências
+extras. Prazos e previsões de fechamento são `DATE`, sem fuso.
+
+**Consequências.** Indicadores e filtros de prazo são consistentes para toda a equipe,
+independentemente do relógio do navegador. Organizações em outros fusos exigirão uma
+configuração por organização (prevista para a administração), sem mudar o contrato da API.
+
+---
+
+## ADR-017 — Dashboard em um único endpoint, com agregação no banco
+
+**Data:** 2026-10-26
+
+**Contexto.** O painel combina oito indicadores, cinco gráficos e um ranking, todos sujeitos ao
+escopo do usuário e a um filtro de período.
+
+**Decisão.** `GET /dashboard?from&to` executa as consultas em paralelo com `count`, `aggregate` e
+`groupBy` do Prisma, reaproveitando `customerScope`, `dealScope` e o escopo de tarefas — o mesmo
+filtro de segurança das listagens. Apenas os negócios ganhos do período são lidos (data e valor)
+para montar a série temporal no fuso de negócio; o agrupamento e o ranking ficam em funções puras
+testadas sem banco. O frontend oferece períodos pré-definidos (7, 30 e 90 dias, 12 meses e ano
+corrente), guardados na URL.
+
+**Consequências.** Uma chamada por troca de período, sem SQL manual nem risco de divergência de
+escopo. Para volumes muito grandes, a série poderá migrar para `date_trunc` no PostgreSQL ou
+tabelas de resumo, mantendo o mesmo formato de resposta.
+
+---
+
+## ADR-018 — Visibilidade e autoria das atividades
+
+**Data:** 2026-10-26
+
+**Contexto.** O histórico de interações precisa ser útil para quem atende o cliente e confiável
+como registro.
+
+**Decisão.** Toda atividade pertence a um cliente (o negócio é opcional). O vendedor vê o que
+registrou e tudo o que envolve seus clientes ou negócios, inclusive o que a gestão registrou.
+Somente o autor edita o próprio registro; o autor ou a gestão (`activities:delete`) excluem.
+Datas no futuro são recusadas — compromissos são tarefas.
+
+**Consequências.** O histórico acompanha a carteira: ao redistribuir um cliente, o novo
+responsável vê todo o relacionamento anterior. Ninguém reescreve o registro de outra pessoa.
+
+---
+
+## ADR-019 — Vínculos de tarefas e atividades ao excluir negócios e clientes
+
+**Data:** 2026-10-26
+
+**Contexto.** Tarefas e atividades podem apontar para um cliente e um negócio. Excluir um negócio
+não deveria apagar o histórico do cliente; excluir um cliente torna seus registros sem sentido.
+
+**Decisão.** A FK para clientes usa `ON DELETE CASCADE`. A FK composta para negócios usa
+`NO ACTION`, e a exclusão de um negócio desfaz o vínculo de tarefas e atividades na mesma
+transação. (O PostgreSQL permite `SET NULL` em apenas uma coluna da FK, mas o Prisma não
+representa essa forma; a regra explícita no serviço evita divergência entre schema e banco.)
+
+**Consequências.** O histórico de relacionamento sobrevive à exclusão de oportunidades, e o banco
+continua impedindo referências órfãs ou entre organizações.

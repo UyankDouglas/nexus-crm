@@ -18,7 +18,7 @@ Clientes, oportunidades, funil de vendas, tarefas, equipe e resultados em uma ú
 [Telas](#-telas) · [Destaques técnicos](#-destaques-técnicos) · [Como executar](#-como-executar) ·
 [Arquitetura](#-arquitetura) · [Testes](#-testes) · [Roadmap](#-roadmap)
 
-<img src="docs/screenshots/pipeline-board.png" alt="Funil de vendas em Kanban do NEXUS CRM" width="100%" />
+<img src="docs/screenshots/dashboard-light.png" alt="Dashboard comercial do NEXUS CRM" width="100%" />
 
 </div>
 
@@ -35,41 +35,59 @@ Cada organização tem seus próprios usuários, dados e permissões. Um mesmo u
 de várias organizações, com um perfil diferente em cada uma.
 
 > **Status:** Fase 1 — Fundação ✅ · Fase 2 — Clientes e contatos ✅ · Fase 3 — Negociações e
-> funil de vendas ✅ · Próxima: Fase 4 — Dashboard, tarefas e atividades.
+> funil de vendas ✅ · Fase 4 — Dashboard, tarefas e atividades ✅ · Próxima: Fase 5 —
+> Administração e relatórios.
 
 ## 📸 Telas
 
 <table>
   <tr>
+    <td width="50%"><img src="docs/screenshots/dashboard-charts.png" alt="Gráficos do dashboard" /></td>
+    <td width="50%"><img src="docs/screenshots/dashboard-lists.png" alt="Últimas negociações, próximas tarefas e atividades recentes" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Receita acumulada, negócios por etapa e performance por vendedor</sub></td>
+    <td align="center"><sub>Últimas negociações, próximas tarefas e atividades recentes</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/pipeline-board.png" alt="Funil de vendas em Kanban" /></td>
+    <td width="50%"><img src="docs/screenshots/tasks.png" alt="Tarefas com prazos e prioridades" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Funil de vendas em Kanban com arrastar e soltar</sub></td>
+    <td align="center"><sub>Tarefas com prazo, prioridade, responsável e conclusão rápida</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/activities.png" alt="Histórico de atividades" /></td>
     <td width="50%"><img src="docs/screenshots/deal-detail.png" alt="Detalhe do negócio com histórico" /></td>
     <td width="50%"><img src="docs/screenshots/deal-lost-dialog.png" alt="Registro do motivo da perda" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>Detalhe do negócio: valor, previsão, responsável e histórico de etapas</sub></td>
+    <td align="center"><sub>Histórico de ligações, reuniões, e-mails e observações</sub></td>
+    <td align="center"><sub>Detalhe do negócio com abas de resumo, atividades e tarefas</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/customer-detail.png" alt="Detalhe do cliente" /></td>
+    <td width="50%"><img src="docs/screenshots/deal-lost-dialog.png" alt="Registro do motivo da perda" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Detalhe do cliente: negócios, interações, tarefas e contatos</sub></td>
     <td align="center"><sub>Perdas exigem motivo; ganhos pedem confirmação</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/customers-list.png" alt="Carteira de clientes" /></td>
-    <td width="50%"><img src="docs/screenshots/customer-detail.png" alt="Detalhe do cliente" /></td>
+    <td width="50%"><img src="docs/screenshots/customer-form.png" alt="Edição de cliente em drawer" /></td>
   </tr>
   <tr>
     <td align="center"><sub>Carteira de clientes com busca, filtros e paginação na URL</sub></td>
-    <td align="center"><sub>Detalhe do cliente: negócios, contatos, pessoas vinculadas e histórico</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/screenshots/customer-form.png" alt="Edição de cliente em drawer" /></td>
-    <td width="50%"><img src="docs/screenshots/command-menu.png" alt="Busca global com Ctrl+K" /></td>
-  </tr>
-  <tr>
     <td align="center"><sub>Cadastro e edição em drawer, com validação de CPF/CNPJ</sub></td>
-    <td align="center"><sub>Busca global de clientes, negócios e módulos (<kbd>Ctrl</kbd> + <kbd>K</kbd>)</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/dashboard-light.png" alt="Dashboard" /></td>
+    <td width="50%"><img src="docs/screenshots/command-menu.png" alt="Busca global com Ctrl+K" /></td>
     <td width="50%"><img src="docs/screenshots/dashboard-dark.png" alt="Dashboard no tema escuro" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>Dashboard com indicadores comerciais calculados no banco</sub></td>
+    <td align="center"><sub>Busca global de clientes, negócios e ações (<kbd>Ctrl</kbd> + <kbd>K</kbd>)</sub></td>
     <td align="center"><sub>Tema escuro</sub></td>
   </tr>
   <tr>
@@ -109,11 +127,15 @@ de várias organizações, com um perfil diferente em cada uma.
   desfaz o movimento se a API recusar; a API confere funil, etapa, permissão de reabertura e motivo
   da perda, grava o histórico e reposiciona o card com **índice fracionário** (um único `UPDATE`
   por movimento). Funciona também pelo teclado, com anúncios para leitores de tela em português.
+- **Dashboard calculado no banco, no fuso certo.** Um único endpoint agrega indicadores, vendas
+  por período, negócios por etapa, performance por vendedor e distribuição com `count`, `aggregate`
+  e `groupBy`, usando os mesmos filtros de escopo das listagens — o vendedor vê a própria carteira,
+  a gestão vê a equipe. Períodos e prazos seguem o fuso de Brasília, não o relógio do servidor.
 - **Domínio brasileiro levado a sério**: validação de CPF e de **CNPJ alfanumérico** (formato
   vigente desde julho de 2026), telefones e UFs, com formatação automática.
 - **Senhas com Argon2id** (parâmetros OWASP) e resposta em tempo constante para e-mails
   inexistentes, evitando enumeração de usuários.
-- **212 testes automatizados**, incluindo 66 testes de integração contra PostgreSQL real que
+- **270 testes automatizados**, incluindo 88 testes de integração contra PostgreSQL real que
   verificam os critérios de aceite de segurança e de negócio — e um pipeline de CI que roda tudo a
   cada push.
 - **Nenhum dado fictício na interface.** Indicadores vêm de agregações no banco; os que dependem de
@@ -198,16 +220,35 @@ Criadas por `pnpm db:seed` — **dados fictícios, para uso exclusivamente local
 | `beatriz.alves@vertice.example`   | Administrador — Vértice Consultoria (Demo)                                   |
 
 A seed também cria **27 clientes fictícios** com contatos — 23 na Horizonte (distribuídos entre
-Juliana, Rafael e Carlos, com 4 ainda sem responsável) e 4 na Vértice — e **29 negócios** (25 e 4)
-espalhados pelas etapas do funil, com ganhos, perdas com motivo e histórico de movimentações. Entre
-como vendedor e como gestor para comparar as carteiras.
+Juliana, Rafael e Carlos, com 4 ainda sem responsável) e 4 na Vértice —, **49 negócios** (45 na
+Horizonte, 20 deles encerrados ao longo do último ano para alimentar os gráficos, e 4 na Vértice),
+**19 tarefas** com prazos relativos ao dia da execução (atrasadas, do dia e futuras) e **25
+atividades** registradas. Entre como vendedor e como gestor para comparar as carteiras.
 
-A seed é idempotente — recria clientes e negócios das organizações de demonstração a cada
-execução — e se
-recusa a rodar com `NODE_ENV=production` (exceto com `DEMO_MODE=true`, para um ambiente público
-isolado de demonstração).
+A seed é idempotente — recria os dados comerciais das organizações de demonstração a cada execução
+— e se recusa a rodar com `NODE_ENV=production` (exceto com `DEMO_MODE=true`, para um ambiente
+público isolado de demonstração).
 
 ## 🧩 Funcionalidades
+
+### Fase 4 — Dashboard, tarefas e atividades
+
+- **Dashboard comercial** com filtro de período (7, 30 e 90 dias, 12 meses e ano corrente):
+  total de clientes, oportunidades abertas, valor do pipeline, negociações ganhas e perdidas,
+  receita, taxa de conversão e tarefas pendentes.
+- **Gráficos interativos**: vendas por período (dia, semana ou mês, conforme o intervalo),
+  evolução da receita acumulada, negociações por etapa, performance por vendedor (com conversão
+  individual) e distribuição dos negócios criados no período.
+- **Últimas negociações, próximas tarefas e atividades recentes** no próprio painel.
+- **Tarefas** com responsável, prazo, prioridade e status (a fazer, em andamento, concluída,
+  cancelada), ligadas a clientes e negócios; conclusão com um clique, filtros de prazo (atrasadas,
+  hoje, próximos 7 dias), prioridade e responsável, e totais clicáveis.
+- **Registro de interações**: ligações, reuniões, e-mails e observações com data e hora, ligados
+  a um cliente e, opcionalmente, a um negócio. Só o autor edita o próprio registro.
+- **Histórico de interações e tarefas** no detalhe do cliente e em abas no detalhe do negócio,
+  com cadastro já vinculado.
+- **Notificações** no sino da topbar com as tarefas atrasadas e do dia; atalhos "Nova tarefa" e
+  "Registrar atividade" na busca global.
 
 ### Fase 3 — Negociações e funil de vendas
 
@@ -259,10 +300,10 @@ isolado de demonstração).
 - **Layout definitivo**: sidebar recolhível, topbar com busca (<kbd>Ctrl</kbd> + <kbd>K</kbd>),
   notificações, menu do usuário, tema claro/escuro, layout responsivo, skeletons, toasts e estados
   vazios.
-- **Dashboard** com dados reais do PostgreSQL (equipe por perfil, organização e membros).
+- **Dashboard inicial** com dados reais do PostgreSQL (substituído pelo painel comercial na Fase 4).
 - **Configurações**: nome da organização (somente administradores), membros (administradores e
   gestores) e descrição dos perfis.
-- Módulos futuros (Tarefas e Relatórios) exibem o escopo planejado, sem simular operações.
+- Módulos futuros (como Relatórios) exibem o escopo planejado, sem simular operações.
 - **Swagger** em `/api/docs` e **health check** em `/api/health`.
 
 ## 🏗 Arquitetura
@@ -299,9 +340,10 @@ sequenceDiagram
 ```
 
 - **Monorepositório** com pnpm workspaces: `apps/web`, `apps/api` e `packages/shared`.
-- **API modular** (`auth`, `organizations`, `customers`, `deals`, `mail`, `health`), com regras de
-  negócio nos services e controllers finos. Todo acesso a clientes e negócios passa por um filtro
-  de escopo (organização ativa + carteira do vendedor).
+- **API modular** (`auth`, `organizations`, `customers`, `deals`, `tasks`, `activities`,
+  `dashboard`, `mail`, `health`), com regras de negócio nos services e controllers finos. Todo
+  acesso a clientes, negócios, tarefas e atividades passa por um filtro de escopo (organização
+  ativa + carteira do usuário).
 - **Frontend** separado em `services` (acesso à API), `features` (hooks e componentes por domínio),
   `pages`, `layouts` e `routes`.
 
@@ -319,14 +361,14 @@ nexus-crm/
 │   │   ├── src/
 │   │   │   ├── common/           # guards, decorators, filtros, segurança, utilitários
 │   │   │   ├── config/           # validação e acesso tipado ao ambiente
-│   │   │   ├── modules/          # auth, organizations, customers, deals, mail, health
+│   │   │   ├── modules/          # auth, organizations, customers, deals, tasks, activities…
 │   │   │   └── prisma/           # PrismaService
 │   │   └── test/                 # testes de integração
 │   └── web/                      # React + Vite
 │       └── src/
 │           ├── app/              # providers e tema
 │           ├── components/       # componentes compartilhados e ui/ (shadcn)
-│           ├── features/         # auth, customers, deals, dashboard, organization
+│           ├── features/         # auth, customers, deals, tasks, activities, dashboard…
 │           ├── layouts/          # AuthLayout, AppLayout (sidebar, topbar)
 │           ├── lib/              # query client, navegação, formatação
 │           ├── pages/            # páginas por rota
@@ -343,12 +385,12 @@ nexus-crm/
 
 ## 🧪 Testes
 
-| Suíte                   | Ferramentas                   | Testes | Cobertura principal                                                |
-| ----------------------- | ----------------------------- | -----: | ------------------------------------------------------------------ |
-| `packages/shared`       | Vitest                        |     58 | RBAC, schemas, CPF/CNPJ, telefones, tags, valores em reais e datas |
-| `apps/api` (unitários)  | Jest                          |     31 | CSRF, permissões, escopo, login, validação, transições e posições  |
-| `apps/api` (integração) | Jest + Supertest + PostgreSQL |     66 | Critérios de aceite das Fases 1 a 3 (abaixo)                       |
-| `apps/web`              | Vitest + Testing Library      |     57 | Rotas, login, cliente HTTP, filtros, formulário de negócio, quadro |
+| Suíte                   | Ferramentas                   | Testes | Cobertura principal                                               |
+| ----------------------- | ----------------------------- | -----: | ----------------------------------------------------------------- |
+| `packages/shared`       | Vitest                        |     69 | RBAC, schemas, CPF/CNPJ, valores, datas, períodos e agrupamentos  |
+| `apps/api` (unitários)  | Jest                          |     39 | CSRF, permissões, escopo, transições, fuso de negócio, agregações |
+| `apps/api` (integração) | Jest + Supertest + PostgreSQL |     88 | Critérios de aceite das Fases 1 a 4 (abaixo)                      |
+| `apps/web`              | Vitest + Testing Library      |     74 | Rotas, login, formulários, filtros, quadro, prazos e indicadores  |
 
 Critérios de aceite verificados pelos testes de integração:
 
@@ -367,6 +409,12 @@ Critérios de aceite verificados pelos testes de integração:
 - ✅ Só gestores e administradores reabrem ou movem negócios encerrados, que não podem ser editados.
 - ✅ A ordem dos cards é preservada; o quadro de uma organização nunca mostra negócios de outra.
 - ✅ Cliente com negócios não pode ser excluído.
+- ✅ Vendedor cria tarefas só para si; a gestão atribui apenas a membros ativos da organização.
+- ✅ Tarefas e atividades só se ligam a clientes e negócios visíveis; o negócio define o cliente.
+- ✅ Atrasadas, do dia e da semana seguem o fuso de negócio; concluir e reabrir mantêm as datas coerentes.
+- ✅ Só o autor edita uma atividade; a gestão modera exclusões; datas futuras são recusadas.
+- ✅ Excluir um negócio preserva tarefas e atividades no cliente; excluir o cliente as remove.
+- ✅ O dashboard respeita o escopo de cada perfil, o período informado e o isolamento entre organizações.
 
 ```bash
 pnpm test               # unitários (shared, API e web)
@@ -425,8 +473,8 @@ Executados na raiz do repositório:
 | 1    | Fundação: monorepo, auth, organizações, RBAC, layout, seed, testes, CI | ✅ Concluída |
 | 2    | Clientes e contatos: CRUD, busca, filtros, paginação, permissões       | ✅ Concluída |
 | 3    | Negociações: pipeline, etapas, Kanban com drag-and-drop, histórico     | ✅ Concluída |
-| 4    | Dashboard com indicadores reais, tarefas e atividades                  | ⏳ Próxima   |
-| 5    | Administração (convites, permissões, pipelines), relatórios, auditoria | Planejada    |
+| 4    | Dashboard com indicadores reais, tarefas e atividades                  | ✅ Concluída |
+| 5    | Administração (convites, permissões, pipelines), relatórios, auditoria | ⏳ Próxima   |
 | 6    | Testes E2E (Playwright), revisão de segurança, deploy e documentação   | Planejada    |
 
 ## 👤 Autor

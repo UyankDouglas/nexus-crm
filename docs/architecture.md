@@ -26,10 +26,13 @@ própria origem, então os cookies de sessão são _first-party_ e não há CORS
 | `organizations` | Resumo, atualização e membros da organização ativa                                |
 | `customers`     | Clientes e contatos: listagem filtrada, CRUD, distribuição, tags e totais         |
 | `deals`         | Funis, etapas e negócios: quadro Kanban, movimentação com histórico e totais      |
+| `tasks`         | Tarefas com responsável, prazo, prioridade e status, ligadas a clientes/negócios  |
+| `activities`    | Histórico de interações: ligações, reuniões, e-mails e observações                |
+| `dashboard`     | Indicadores, séries por período e rankings calculados no banco                    |
 | `mail`          | Envio de e-mails (caixa de saída em arquivo durante o desenvolvimento)            |
 | `health`        | Verificação de disponibilidade da API e do banco                                  |
 
-Novos domínios (tarefas, atividades…) seguem o mesmo formato do módulo de clientes: `controller`
+Novos domínios (relatórios, auditoria…) seguem o mesmo formato do módulo de clientes: `controller`
 fino, `service` com as regras, DTOs validados e acesso a dados sempre filtrado pelo escopo do
 contexto autenticado. IDs de rota são validados como UUID — malformados respondem 404 sem consultar
 o banco.
@@ -119,6 +122,49 @@ Qualificação → Proposta enviada → Negociação → Ganho → Perdido). Cad
 - Um cliente com negócios não pode ser excluído (409): os negócios devem ser excluídos ou
   transferidos antes.
 
+### Tarefas e atividades
+
+- **Tarefas** têm título, descrição, prazo (`DATE`), prioridade (baixa, média, alta), status (a
+  fazer, em andamento, concluída, cancelada) e um **responsável** obrigatório. O vendedor cria
+  tarefas para si; atribuir a outro membro exige `tasks:assign`, e o responsável precisa ter
+  vínculo **ativo**. Escopo (`taskScope`): gestão vê tudo; vendedor, as tarefas sob sua
+  responsabilidade.
+- Concluir grava `completed_at`; reabrir ou cancelar o limpa — uma _CHECK constraint_ garante a
+  coerência. Os filtros de prazo (atrasadas, hoje, próximos 7 dias) usam o **"hoje" do fuso de
+  negócio** e consideram apenas tarefas pendentes.
+- **Atividades** registram o que já aconteceu: tipo, assunto, detalhes e data/hora (no máximo
+  5 minutos no futuro — compromissos são tarefas). Sempre ligadas a um cliente; o negócio é
+  opcional.
+- Escopo das atividades (`activityScope`): gestão vê tudo; o vendedor vê o que registrou e tudo o
+  que envolve **seus clientes ou negócios** — inclusive registros feitos pela gestão. Só o autor
+  edita o próprio registro; o autor ou a gestão (`activities:delete`) excluem.
+- **Vínculos** (`resolveLinks`): cliente e negócio precisam estar no escopo de quem grava. Com um
+  negócio, o cliente passa a ser o do negócio; informar os dois incoerentes responde 400. Em
+  edições, os vínculos só são revalidados quando mudam — o vendedor atualiza uma tarefa atribuída
+  pela gestão mesmo sem enxergar o cliente vinculado.
+- Excluir um **negócio** desfaz o vínculo de tarefas e atividades na mesma transação (elas
+  continuam no cliente). Excluir um **cliente** remove em cascata suas tarefas e atividades.
+
+### Dashboard
+
+`GET /dashboard?from=AAAA-MM-DD&to=AAAA-MM-DD` devolve tudo o que o painel precisa em uma
+chamada, calculado sobre os **mesmos escopos** das listagens:
+
+| Bloco                    | Origem                                                    | Período         |
+| ------------------------ | --------------------------------------------------------- | --------------- |
+| Clientes, pipeline       | `count`/`aggregate` sobre `customerScope` e `dealScope`   | Situação atual  |
+| Tarefas pendentes        | `TasksService.stats` (pendentes e atrasadas)              | Situação atual  |
+| Ganhos, perdas, taxa     | negócios encerrados no intervalo (`closed_at`)            | Intervalo       |
+| Vendas por período       | ganhos agrupados por dia, semana ou mês (fuso de negócio) | Intervalo       |
+| Negociações por etapa    | `groupBy` dos negócios em andamento do funil padrão       | Situação atual  |
+| Performance por vendedor | `groupBy` por responsável (gestão vê toda a equipe)       | Intervalo/atual |
+| Distribuição             | negócios **criados** no intervalo, pelo status atual      | Intervalo       |
+
+- O intervalo é convertido em instantes `[início, fim)` no fuso `America/Sao_Paulo`
+  (`zonedRangeBounds`); o agrupamento é diário até 31 dias, semanal até 120 e mensal acima disso,
+  com grupos vazios preenchidos com zero. As funções de agregação são puras e testadas sem banco.
+- Intervalos inválidos, invertidos ou maiores que 731 dias respondem 400.
+
 ### RBAC
 
 A matriz de permissões vive em `packages/shared/src/permissions.ts` e é a mesma usada pela API
@@ -142,6 +188,16 @@ A matriz de permissões vive em `packages/shared/src/permissions.ts` e é a mesm
 | `deals:assign`        |       ✓       |        ✓         |                      |
 | `deals:reopen`        |       ✓       |        ✓         |                      |
 | `deals:delete`        |       ✓       |        ✓         |                      |
+| `tasks:read`          |       ✓       |        ✓         |  ✓ (sob sua resp.)   |
+| `tasks:read-all`      |       ✓       |        ✓         |                      |
+| `tasks:create`        |       ✓       |        ✓         |     ✓ (para si)      |
+| `tasks:update`        |       ✓       |        ✓         |  ✓ (sob sua resp.)   |
+| `tasks:assign`        |       ✓       |        ✓         |                      |
+| `tasks:delete`        |       ✓       |        ✓         |                      |
+| `activities:read`     |       ✓       |        ✓         | ✓ (própria carteira) |
+| `activities:read-all` |       ✓       |        ✓         |                      |
+| `activities:create`   |       ✓       |        ✓         |          ✓           |
+| `activities:delete`   |       ✓       |        ✓         |   (só as próprias)   |
 
 ### Modelo de dados
 
@@ -158,6 +214,9 @@ customers            ─< contacts
 organizations ─< pipelines ─< pipeline_stages (kind, probability, position)
 pipeline_stages ─< deals >─ customers         (value, status, position, owner_id)
 deals ─< deal_stage_history                   (etapas de origem/destino, autor, motivo)
+
+organization_members ─< tasks >─ customers?, deals?   (assignee_id, due_date, status, priority)
+organization_members ─< activities >─ customers, deals? (author_id, type, occurred_at)
 ```
 
 - IDs **UUIDv7** (ordenáveis no tempo, bons para índices).
@@ -176,6 +235,10 @@ deals ─< deal_stage_history                   (etapas de origem/destino, autor
   responsável por **FKs compostas**: um negócio não aponta para a etapa de outro funil nem para o
   cliente de outra organização. Valores monetários em `NUMERIC(14,2)`; previsão de fechamento em
   `DATE` (sem fuso).
+- Tarefas e atividades usam FKs compostas para responsável/autor (`organization_members`),
+  cliente (`ON DELETE CASCADE`) e negócio (sem ação: a API desfaz o vínculo antes de excluir o
+  negócio). Prazo em `DATE`; data da atividade em `timestamptz`. Índices por responsável, status e
+  prazo (listas de pendências) e por cliente e data (linha do tempo).
 - Índices por `(organization_id, …)` para nome, status, responsável, atualização e empresa; índice
   **GIN** nas tags (filtro com `@>`).
 
@@ -206,4 +269,12 @@ deals ─< deal_stage_history                   (etapas de origem/destino, autor
   recebe anúncios em português; o menu de cada card oferece a mesma ação sem arrastar.
 - Detalhes e cadastro de negócios abrem em _drawers_ controlados pela URL (`?negocio=<id>`,
   `?novo=1`): a busca global leva direto a um negócio e o "voltar" do navegador fecha o drawer.
+- O **dashboard** guarda o período na URL (`?periodo=12m`) e mantém os gráficos atuais na tela
+  enquanto o novo período carrega. Gráficos com Recharts (via `ChartContainer` do shadcn/ui), com
+  cores do tema e descrição textual (`aria-label`) para leitores de tela.
+- **Tarefas e atividades** vivem em uma página com abas (`?aba=atividades`), filtros na URL e
+  versões compactas reutilizadas no cliente, no detalhe do negócio e no dashboard. O sino da
+  topbar lista as tarefas do usuário atrasadas e do dia.
+- Drawers e diálogos retêm o último conteúdo (`useRetainedValue`) para não encolherem vazios na
+  animação de fechamento.
 - Tema claro/escuro aplicado antes da renderização (script em `index.html`) para evitar _flash_.
