@@ -10,18 +10,7 @@
     <meta name="theme-color" content="#0F172A" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>NEXUS CRM</title>
-    <script>
-      // Aplica o tema antes da renderização para evitar o "flash" de tema claro.
-      (function () {
-        try {
-          var stored = localStorage.getItem('nexus-theme');
-          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          if (stored === 'dark' || ((!stored || stored === 'system') && prefersDark)) {
-            document.documentElement.classList.add('dark');
-          }
-        } catch (e) {}
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

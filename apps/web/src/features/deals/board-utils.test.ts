@@ -1,6 +1,7 @@
 import type { DealBoard, DealCard, PipelineStageItem } from '@nexus/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  adjacentStage,
   afterIdOf,
   applyColumnsToBoard,
   columnsFromBoard,
@@ -89,5 +90,14 @@ describe('utilitários do quadro', () => {
     expect(next.columns[0]).toMatchObject({ count: 1, totalValue: 100 });
     expect(next.columns[2]).toMatchObject({ count: 1, totalValue: 250 });
     expect(next.columns[2]!.deals[0]).toMatchObject({ id: 'b', status: 'WON', stageId: 'ganho' });
+  });
+
+  it('encontra a etapa vizinha para mover pelo teclado, sem passar das pontas', () => {
+    const order = ['lead', 'contato', 'proposta', 'ganho'];
+    expect(adjacentStage(order, 'contato', 1)).toBe('proposta');
+    expect(adjacentStage(order, 'contato', -1)).toBe('lead');
+    expect(adjacentStage(order, 'lead', -1)).toBeUndefined();
+    expect(adjacentStage(order, 'ganho', 1)).toBeUndefined();
+    expect(adjacentStage(order, 'inexistente', 1)).toBeUndefined();
   });
 });

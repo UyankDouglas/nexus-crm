@@ -7,6 +7,7 @@ import {
   type DragOverEvent,
   DragOverlay,
   type DragStartEvent,
+  type KeyboardCoordinateGetter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -14,10 +15,11 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { usePermission } from '@/features/auth/hooks';
 import {
+  adjacentStage,
   afterIdOf,
   applyColumnsToBoard,
   type BoardColumns,
@@ -62,13 +64,38 @@ export function DealBoardView({ board, queryKey, onOpenDeal }: DealBoardViewProp
     [board],
   );
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
   const columnOf = (id: string, current: BoardColumns) =>
     stageById.has(id) ? id : findColumnOf(current, id);
+
+  // O sensor de teclado guarda as opções do início do arraste: o estado atual vem da ref.
+  const columnsRef = useRef(columns);
+  useLayoutEffect(() => {
+    columnsRef.current = columns;
+  });
+  const stageOrder = useMemo(() => stages.map((stage) => stage.id), [stages]);
+
+  /**
+   * Setas para os lados levam o card direto à etapa vizinha. O cálculo padrão do dnd-kit compara
+   * posições na tela e, com o card inclinado durante o arraste, a primeira seta só deslocava o
+   * card dentro da mesma etapa. Para cima e para baixo, segue a ordem dos cards da etapa.
+   */
+  const keyboardCoordinates: KeyboardCoordinateGetter = (event, args) => {
+    const direction = event.code === 'ArrowRight' ? 1 : event.code === 'ArrowLeft' ? -1 : 0;
+    if (!direction) return sortableKeyboardCoordinates(event, args);
+    event.preventDefault();
+    const { active, over, droppableRects } = args.context;
+    if (!active) return undefined;
+    const current = columnOf(String(over?.id ?? active.id), columnsRef.current);
+    const target = current ? adjacentStage(stageOrder, current, direction) : undefined;
+    const rect = target ? droppableRects.get(target) : undefined;
+    return rect ? { x: rect.left, y: rect.top } : undefined;
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // Rolagem instantânea: a suave termina depois do cálculo da nova posição do card.
+    useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates, scrollBehavior: 'auto' }),
+  );
 
   const commit = (
     deal: DealCard,

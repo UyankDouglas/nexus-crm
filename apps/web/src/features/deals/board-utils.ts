@@ -7,6 +7,16 @@ export function columnsFromBoard(board: DealBoard): BoardColumns {
   return Object.fromEntries(board.columns.map((column) => [column.stage.id, column.deals]));
 }
 
+/** Etapa vizinha na ordem do funil (movimento pelo teclado); `undefined` nas pontas. */
+export function adjacentStage(
+  stageIds: readonly string[],
+  current: string,
+  direction: 1 | -1,
+): string | undefined {
+  const index = stageIds.indexOf(current);
+  return index === -1 ? undefined : stageIds[index + direction];
+}
+
 export function findColumnOf(columns: BoardColumns, dealId: string): string | undefined {
   return Object.keys(columns).find((stageId) =>
     columns[stageId]!.some((deal) => deal.id === dealId),

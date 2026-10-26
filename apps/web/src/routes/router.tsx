@@ -3,7 +3,7 @@ import { FullPageLoader } from '@/components/full-page-state';
 import { AppLayout } from '@/layouts/app-layout';
 import { AuthLayout } from '@/layouts/auth-layout';
 import { paths } from '@/lib/navigation';
-import { RouteErrorPage } from '@/pages/route-error-page';
+import { PageErrorBoundary, RouteErrorPage } from '@/pages/route-error-page';
 import { GuestRoute, ProtectedRoute } from './route-guards';
 
 export const router = createBrowserRouter([
@@ -81,52 +81,59 @@ export const router = createBrowserRouter([
             element: <AppLayout />,
             children: [
               {
-                index: true,
-                lazy: async () => ({
-                  Component: (await import('@/pages/app/dashboard-page')).DashboardPage,
-                }),
-              },
-              {
-                path: paths.customers,
-                lazy: async () => ({
-                  Component: (await import('@/pages/app/customers-page')).CustomersPage,
-                }),
-              },
-              {
-                path: `${paths.customers}/:customerId`,
-                lazy: async () => ({
-                  Component: (await import('@/pages/app/customer-detail-page')).CustomerDetailPage,
-                }),
-              },
-              {
-                path: paths.pipeline,
-                lazy: async () => ({
-                  Component: (await import('@/pages/app/pipeline-page')).PipelinePage,
-                }),
-              },
-              {
-                path: paths.tasks,
-                lazy: async () => ({
-                  Component: (await import('@/pages/app/tasks-page')).TasksPage,
-                }),
-              },
-              {
-                path: paths.reports,
-                lazy: async () => ({
-                  Component: (await import('@/pages/app/reports-page')).ReportsPage,
-                }),
-              },
-              {
-                path: paths.settings,
-                lazy: async () => ({
-                  Component: (await import('@/pages/app/settings-page')).SettingsPage,
-                }),
-              },
-              {
-                path: '*',
-                lazy: async () => ({
-                  Component: (await import('@/pages/not-found-page')).NotFoundPage,
-                }),
+                // Erros de uma tela aparecem dentro do layout, com a navegação disponível.
+                errorElement: <PageErrorBoundary />,
+                children: [
+                  {
+                    index: true,
+                    lazy: async () => ({
+                      Component: (await import('@/pages/app/dashboard-page')).DashboardPage,
+                    }),
+                  },
+                  {
+                    path: paths.customers,
+                    lazy: async () => ({
+                      Component: (await import('@/pages/app/customers-page')).CustomersPage,
+                    }),
+                  },
+                  {
+                    path: `${paths.customers}/:customerId`,
+                    lazy: async () => ({
+                      Component: (await import('@/pages/app/customer-detail-page'))
+                        .CustomerDetailPage,
+                    }),
+                  },
+                  {
+                    path: paths.pipeline,
+                    lazy: async () => ({
+                      Component: (await import('@/pages/app/pipeline-page')).PipelinePage,
+                    }),
+                  },
+                  {
+                    path: paths.tasks,
+                    lazy: async () => ({
+                      Component: (await import('@/pages/app/tasks-page')).TasksPage,
+                    }),
+                  },
+                  {
+                    path: paths.reports,
+                    lazy: async () => ({
+                      Component: (await import('@/pages/app/reports-page')).ReportsPage,
+                    }),
+                  },
+                  {
+                    path: paths.settings,
+                    lazy: async () => ({
+                      Component: (await import('@/pages/app/settings-page')).SettingsPage,
+                    }),
+                  },
+                  {
+                    path: '*',
+                    lazy: async () => ({
+                      Component: (await import('@/pages/not-found-page')).NotFoundPage,
+                    }),
+                  },
+                ],
               },
             ],
           },
