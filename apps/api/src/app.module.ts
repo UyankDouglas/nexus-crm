@@ -9,11 +9,13 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
 import { AppConfigService } from './config/app-config.service';
 import { AppConfigModule } from './config/config.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { DealsModule } from './modules/deals/deals.module';
 import { HealthModule } from './modules/health/health.module';
+import { InvitationsModule } from './modules/invitations/invitations.module';
 import { MailModule } from './modules/mail/mail.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -42,8 +44,10 @@ const ONE_MINUTE_MS = 60_000;
         ],
       }),
     }),
+    AuditModule,
     AuthModule,
     OrganizationsModule,
+    InvitationsModule,
     CustomersModule,
     DealsModule,
     TasksModule,

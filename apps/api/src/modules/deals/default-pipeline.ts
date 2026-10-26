@@ -1,13 +1,21 @@
 import { DEFAULT_PIPELINE_NAME, DEFAULT_PIPELINE_STAGES } from '@nexus/shared';
 import type { Prisma } from '../../generated/prisma/client';
 
-/** Cria o funil padrão de uma organização (usado no cadastro e na seed de demonstração). */
+/**
+ * Cria um funil com as etapas padrão. Sem opções, é o funil padrão da organização (cadastro e
+ * seed); a administração usa o mesmo modelo para criar funis adicionais.
+ */
 export async function createDefaultPipeline(
   tx: Prisma.TransactionClient,
   organizationId: string,
+  options: { name?: string; isDefault?: boolean } = {},
 ): Promise<{ id: string }> {
   const pipeline = await tx.pipeline.create({
-    data: { organizationId, name: DEFAULT_PIPELINE_NAME, isDefault: true },
+    data: {
+      organizationId,
+      name: options.name ?? DEFAULT_PIPELINE_NAME,
+      isDefault: options.isDefault ?? true,
+    },
     select: { id: true },
   });
 

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   MEMBER_ROLES,
   MEMBERSHIP_STATUSES,
@@ -7,12 +7,26 @@ import {
   type OrganizationMemberItem,
   type OrganizationSummary,
 } from '@nexus/shared';
+import { IsIn, IsOptional } from 'class-validator';
 import { TrimmedText } from '../../../common/validation/decorators';
 
 export class UpdateOrganizationDto {
   @ApiProperty({ example: 'Horizonte Tecnologia', minLength: 2, maxLength: 120 })
   @TrimmedText('o nome da organização', 2, 120)
   name: string;
+}
+
+/** Alteração de perfil e/ou situação do vínculo (somente administradores). */
+export class UpdateMemberDto {
+  @ApiPropertyOptional({ enum: MEMBER_ROLES })
+  @IsOptional()
+  @IsIn(MEMBER_ROLES, { message: 'Perfil inválido.' })
+  role?: MemberRole;
+
+  @ApiPropertyOptional({ enum: MEMBERSHIP_STATUSES, description: 'SUSPENDED revoga o acesso.' })
+  @IsOptional()
+  @IsIn(MEMBERSHIP_STATUSES, { message: 'Situação inválida.' })
+  status?: MembershipStatus;
 }
 
 class MembersByRoleDto implements Record<MemberRole, number> {

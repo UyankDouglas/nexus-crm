@@ -49,7 +49,7 @@ export async function createTestApp(): Promise<TestContext> {
 /** Limpa todas as tabelas do banco de testes (comando fixo, sem entrada externa). */
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "activities", "tasks", "deal_stage_history", "deals", "pipeline_stages", "pipelines", "contacts", "customers", "password_reset_tokens", "sessions", "organization_members", "organizations", "users" CASCADE',
+    'TRUNCATE TABLE "audit_logs", "invitations", "activities", "tasks", "deal_stage_history", "deals", "pipeline_stages", "pipelines", "contacts", "customers", "password_reset_tokens", "sessions", "organization_members", "organizations", "users" CASCADE',
   );
 }
 
@@ -119,6 +119,11 @@ export class HttpClient {
   async patch(path: string, body?: object) {
     const token = await this.csrf();
     return this.agent.patch(`/api${path}`).set('X-CSRF-Token', token).send(body);
+  }
+
+  async put(path: string, body?: object) {
+    const token = await this.csrf();
+    return this.agent.put(`/api${path}`).set('X-CSRF-Token', token).send(body);
   }
 
   async delete(path: string) {

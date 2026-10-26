@@ -20,6 +20,7 @@ import { AppException } from '../../common/errors/app.exception';
 import { assertActiveMember } from '../../common/tenancy/members';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { actorOf, AuditService } from '../audit/audit.service';
 import {
   customerDetailInclude,
   customerListInclude,
@@ -44,7 +45,10 @@ const ORDER_BY: Record<ListCustomersQueryDto['sort'], Prisma.CustomerOrderByWith
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async list(
     auth: TenantAuthContext,
@@ -169,7 +173,7 @@ export class CustomersService {
    * negócios não são excluídos, para não apagar o histórico comercial.
    */
   async remove(auth: TenantAuthContext, id: string): Promise<void> {
-    await this.findInScope(auth, id);
+    const customer = await this.findInScope(auth, id);
     const organizationId = auth.organization.id;
 
     const deals = await this.prisma.deal.count({ where: { organizationId, customerId: id } });
@@ -181,13 +185,20 @@ export class CustomersService {
       );
     }
 
-    await this.prisma.$transaction([
-      this.prisma.customer.updateMany({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.customer.updateMany({
         where: { organizationId, companyId: id },
         data: { companyId: null },
-      }),
-      this.prisma.customer.delete({ where: { organizationId_id: { organizationId, id } } }),
-    ]);
+      });
+      await tx.customer.delete({ where: { organizationId_id: { organizationId, id } } });
+      await this.audit.record(tx, actorOf(auth), {
+        action: 'customer.deleted',
+        entityType: 'customer',
+        entityId: id,
+        summary: `Cliente ${customer.name} excluído, com contatos, tarefas e atividades.`,
+        metadata: { name: customer.name },
+      });
+    });
   }
 
   /** Tags usadas nos clientes visíveis ao usuário, para filtros e sugestões. */
@@ -235,7 +246,7 @@ export class CustomersService {
   async findInScope(auth: TenantAuthContext, id: string) {
     const customer = await this.prisma.customer.findFirst({
       where: { AND: [customerScope(auth), { id }] },
-      select: { id: true, type: true, ownerId: true },
+      select: { id: true, name: true, type: true, ownerId: true },
     });
     if (!customer) throw this.notFound();
     return customer;

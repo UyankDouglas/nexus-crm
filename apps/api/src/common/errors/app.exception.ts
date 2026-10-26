@@ -27,6 +27,10 @@ export class AppException extends HttpException {
     return new AppException(HttpStatus.NOT_FOUND, API_ERROR_CODES.NOT_FOUND, message);
   }
 
+  static conflict(message: string): AppException {
+    return new AppException(HttpStatus.CONFLICT, API_ERROR_CODES.CONFLICT, message);
+  }
+
   static validation(fieldErrors: Record<string, string[]>): AppException {
     return new AppException(
       HttpStatus.BAD_REQUEST,

@@ -16,6 +16,7 @@ import { AppException } from '../../common/errors/app.exception';
 import { assertActiveMember } from '../../common/tenancy/members';
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { actorOf, AuditService } from '../audit/audit.service';
 import { customerScope } from '../customers/customer-scope';
 import { canAssignDeals, canReopenDeals, dealScope } from './deal-scope';
 import { assertDealIsOpen, positionBetween, resolveTransition } from './deal-rules';
@@ -50,7 +51,10 @@ const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
 @Injectable()
 export class DealsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async listPipelines(auth: TenantAuthContext): Promise<PipelineItem[]> {
     const pipelines = await this.prisma.pipeline.findMany({
@@ -264,6 +268,15 @@ export class DealsService {
           ...(transition.stageChanged ? { stageChangedAt: new Date() } : {}),
         },
       });
+      if (deal.status !== 'OPEN' && transition.status === 'OPEN') {
+        await this.audit.record(tx, actorOf(auth), {
+          action: 'deal.reopened',
+          entityType: 'deal',
+          entityId: deal.id,
+          summary: `Negócio ${deal.title} reaberto em ${target.name}.`,
+          metadata: { from: deal.status, stage: target.name },
+        });
+      }
       if (transition.stageChanged) {
         await tx.dealStageHistory.create({
           data: {
@@ -290,19 +303,23 @@ export class DealsService {
    * cliente: o vínculo com o negócio é desfeito na mesma transação.
    */
   async remove(auth: TenantAuthContext, id: string): Promise<void> {
-    await this.findInScope(auth, id);
+    const deal = await this.findInScope(auth, id);
     const organizationId = auth.organization.id;
-    await this.prisma.$transaction([
-      this.prisma.task.updateMany({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({ where: { organizationId, dealId: id }, data: { dealId: null } });
+      await tx.activity.updateMany({
         where: { organizationId, dealId: id },
         data: { dealId: null },
-      }),
-      this.prisma.activity.updateMany({
-        where: { organizationId, dealId: id },
-        data: { dealId: null },
-      }),
-      this.prisma.deal.delete({ where: { organizationId_id: { organizationId, id } } }),
-    ]);
+      });
+      await tx.deal.delete({ where: { organizationId_id: { organizationId, id } } });
+      await this.audit.record(tx, actorOf(auth), {
+        action: 'deal.deleted',
+        entityType: 'deal',
+        entityId: id,
+        summary: `Negócio ${deal.title} excluído.`,
+        metadata: { title: deal.title, status: deal.status },
+      });
+    });
   }
 
   async stats(auth: TenantAuthContext): Promise<DealStats> {
@@ -336,7 +353,7 @@ export class DealsService {
   private async findInScope(auth: TenantAuthContext, id: string) {
     const deal = await this.prisma.deal.findFirst({
       where: { AND: [dealScope(auth), { id }] },
-      select: { id: true, status: true, ownerId: true, customerId: true },
+      select: { id: true, title: true, status: true, ownerId: true, customerId: true },
     });
     if (!deal) throw this.notFound();
     return deal;
