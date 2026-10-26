@@ -10,7 +10,13 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
-import { addDays, BUSINESS_TIME_ZONE, completeCnpj, completeCpf } from '@nexus/shared';
+import {
+  addDays,
+  BUSINESS_TIME_ZONE,
+  completeCnpj,
+  completeCpf,
+  INVITATION_TTL_DAYS,
+} from '@nexus/shared';
 import { PrismaClient, type MemberRole } from '../src/generated/prisma/client';
 import {
   HORIZONTE_CUSTOMERS,
@@ -27,6 +33,13 @@ import {
   type DemoTask,
 } from './demo-activities';
 import { HORIZONTE_DEALS, HORIZONTE_PAST_DEALS, VERTICE_DEALS, type DemoDeal } from './demo-deals';
+import {
+  HORIZONTE_AUDIT,
+  HORIZONTE_INVITATIONS,
+  type DemoAuditEntry,
+  type DemoInvitation,
+} from './demo-admin';
+import { generateToken, sha256 } from '../src/common/security/tokens';
 import { zonedIsoDate, zonedStartOfDay } from '../src/common/time/zoned-date';
 import { createDefaultPipeline } from '../src/modules/deals/default-pipeline';
 
@@ -145,6 +158,8 @@ async function main(): Promise<void> {
         deals: [...HORIZONTE_DEALS, ...HORIZONTE_PAST_DEALS],
         tasks: HORIZONTE_TASKS,
         activities: HORIZONTE_ACTIVITIES,
+        invitations: HORIZONTE_INVITATIONS,
+        audit: HORIZONTE_AUDIT,
       },
       {
         slug: 'vertice-demo',
@@ -152,6 +167,8 @@ async function main(): Promise<void> {
         deals: VERTICE_DEALS,
         tasks: VERTICE_TASKS,
         activities: VERTICE_ACTIVITIES,
+        invitations: [],
+        audit: [],
       },
     ];
     for (const demo of demoData) {
@@ -161,7 +178,7 @@ async function main(): Promise<void> {
       await prisma.activity.deleteMany({ where: { organizationId } });
       await prisma.deal.deleteMany({ where: { organizationId } });
       const customerIds = await seedCustomers(prisma, organizationId, demo.customers, userIds);
-      const pipelineId = await ensureDefaultPipeline(prisma, organizationId);
+      const pipelineId = await resetDemoPipelines(prisma, organizationId);
       const dealIds = await seedDeals(
         prisma,
         organizationId,
@@ -173,6 +190,7 @@ async function main(): Promise<void> {
       const refs = { customerIds, dealIds, userIds };
       await seedTasks(prisma, organizationId, demo.tasks, refs);
       await seedActivities(prisma, organizationId, demo.activities, refs);
+      await seedAdministration(prisma, organizationId, demo.invitations, demo.audit, userIds);
     }
 
     console.log('Seed de demonstração concluída:');
@@ -190,6 +208,9 @@ async function main(): Promise<void> {
     );
     console.log(
       `Tarefas fictícias: ${HORIZONTE_TASKS.length + VERTICE_TASKS.length}; atividades: ${HORIZONTE_ACTIVITIES.length + VERTICE_ACTIVITIES.length}.`,
+    );
+    console.log(
+      `Convites de demonstração: ${HORIZONTE_INVITATIONS.length}; registros de auditoria: ${HORIZONTE_AUDIT.length}.`,
     );
     console.log('Senha das contas: valor de SEED_DEMO_PASSWORD no arquivo .env');
   } finally {
@@ -271,12 +292,13 @@ async function seedCustomers(
   return idsByKey;
 }
 
-async function ensureDefaultPipeline(prisma: PrismaClient, organizationId: string) {
-  const existing = await prisma.pipeline.findFirst({
-    where: { organizationId, isDefault: true },
-    select: { id: true },
-  });
-  return (existing ?? (await createDefaultPipeline(prisma, organizationId))).id;
+/**
+ * Recria os funis de DEMONSTRAÇÃO com as etapas padrão (os negócios já foram removidos), para
+ * que etapas renomeadas ou excluídas na tela de configuração não impeçam uma nova execução.
+ */
+async function resetDemoPipelines(prisma: PrismaClient, organizationId: string) {
+  await prisma.pipeline.deleteMany({ where: { organizationId } });
+  return (await createDefaultPipeline(prisma, organizationId)).id;
 }
 
 /**
@@ -438,6 +460,66 @@ async function seedActivities(
         authorId: lookup(refs.userIds, demo.author, 'Usuário'),
         createdAt: occurredAt,
         updatedAt: occurredAt,
+      };
+    }),
+  });
+}
+
+/**
+ * Convites e auditoria de DEMONSTRAÇÃO. A auditoria só aceita inserções e exclusões (a
+ * alteração é bloqueada no banco), então a seed recria os registros do zero. O token do
+ * convite é descartado — só o hash é gravado; para testar o aceite, use "Reenviar" na tela de
+ * convites, que gera um novo link na caixa de saída local.
+ */
+async function seedAdministration(
+  prisma: PrismaClient,
+  organizationId: string,
+  invitations: DemoInvitation[],
+  audit: DemoAuditEntry[],
+  userIds: Map<string, string>,
+): Promise<void> {
+  await prisma.invitation.deleteMany({ where: { organizationId } });
+  await prisma.auditLog.deleteMany({ where: { organizationId } });
+  const now = Date.now();
+  // Convite já aceito em um teste local: a pessoa é membro e o convite não volta a ficar pendente.
+  const members = await prisma.organizationMember.findMany({
+    where: { organizationId, user: { email: { in: invitations.map((item) => item.email) } } },
+    select: { user: { select: { email: true } } },
+  });
+  const memberEmails = new Set(members.map((member) => member.user.email));
+
+  for (const invitation of invitations.filter((item) => !memberEmails.has(item.email))) {
+    const sentAt = new Date(now - invitation.sentDaysAgo * DAY_MS);
+    await prisma.invitation.create({
+      data: {
+        organizationId,
+        email: invitation.email,
+        role: invitation.role,
+        tokenHash: sha256(generateToken()),
+        invitedById: userIds.get(invitation.invitedBy) ?? null,
+        expiresAt: new Date(sentAt.getTime() + INVITATION_TTL_DAYS * DAY_MS),
+        createdAt: sentAt,
+      },
+    });
+  }
+
+  const brazilianDate = (isoDate: string) => isoDate.split('-').reverse().join('/');
+  await prisma.auditLog.createMany({
+    data: audit.map((entry) => {
+      const createdAt = new Date(now - entry.daysAgo * DAY_MS);
+      const to = zonedIsoDate(createdAt, BUSINESS_TIME_ZONE);
+      const from = addDays(to, -((entry.periodDays ?? 1) - 1));
+      return {
+        organizationId,
+        actorId: userIds.get(entry.actor) ?? null,
+        action: entry.action,
+        entityType: entry.entityType,
+        summary: entry.summary.replace(
+          '{periodo}',
+          `${brazilianDate(from)} a ${brazilianDate(to)}`,
+        ),
+        metadata: entry.periodDays ? { ...entry.metadata, from, to } : entry.metadata,
+        createdAt,
       };
     }),
   });
