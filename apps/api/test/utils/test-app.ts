@@ -14,8 +14,11 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 /** Substitui o envio de e-mails, guardando as mensagens para inspeção nos testes. */
 export class FakeMailService {
   readonly sent: MailMessage[] = [];
+  /** Simula um servidor de e-mail fora do ar. */
+  failing = false;
 
   send(message: MailMessage): Promise<void> {
+    if (this.failing) return Promise.reject(new Error('SMTP indisponível'));
     this.sent.push(message);
     return Promise.resolve();
   }

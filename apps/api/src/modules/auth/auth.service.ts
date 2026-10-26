@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   API_ERROR_CODES,
   permissionsForRole,
@@ -8,7 +8,7 @@ import {
 import type { AuthContext } from '../../common/auth/auth-context';
 import { AppException } from '../../common/errors/app.exception';
 import { generateToken, sha256 } from '../../common/security/tokens';
-import type { RequestMeta } from '../../common/utils/request-meta';
+import { maskEmail, type RequestMeta } from '../../common/utils/request-meta';
 import { AppConfigService } from '../../config/app-config.service';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -33,6 +33,8 @@ const FORGOT_PASSWORD_MESSAGE =
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: AppConfigService,
@@ -187,20 +189,28 @@ export class AuthService {
       link.searchParams.set('token', token);
       const minutes = Math.round(this.config.passwordResetTtlMs / 60_000);
 
-      await this.mail.send({
-        to: user.email,
-        subject: 'Redefinição de senha — NEXUS CRM',
-        text: [
-          `Olá, ${user.name}.`,
-          '',
-          'Recebemos uma solicitação para redefinir a senha da sua conta no NEXUS CRM.',
-          `Para criar uma nova senha, acesse o link abaixo (válido por ${minutes} minutos):`,
-          '',
-          link.toString(),
-          '',
-          'Se você não fez esta solicitação, ignore este e-mail. Sua senha atual continua válida.',
-        ].join('\n'),
-      });
+      // Envio em segundo plano: a resposta tem o mesmo status e o mesmo tempo para e-mails
+      // cadastrados ou não, mesmo quando o servidor de e-mail é lento ou falha.
+      void this.mail
+        .send({
+          to: user.email,
+          subject: 'Redefinição de senha — NEXUS CRM',
+          text: [
+            `Olá, ${user.name}.`,
+            '',
+            'Recebemos uma solicitação para redefinir a senha da sua conta no NEXUS CRM.',
+            `Para criar uma nova senha, acesse o link abaixo (válido por ${minutes} minutos):`,
+            '',
+            link.toString(),
+            '',
+            'Se você não fez esta solicitação, ignore este e-mail. Sua senha atual continua válida.',
+          ].join('\n'),
+        })
+        .catch((error: unknown) =>
+          this.logger.error(
+            `Falha ao enviar a redefinição de senha para ${maskEmail(user.email)}: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        );
     }
 
     return { message: FORGOT_PASSWORD_MESSAGE };

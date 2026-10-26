@@ -43,7 +43,8 @@ export function useInvite() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (input: InvitationInput) => adminService.invite(input),
-    onSuccess: () => invalidate(queryKeys.invitations),
+    // Mesmo se o e-mail falhar, o convite pode ter sido registrado: a lista é sempre recarregada.
+    onSettled: () => invalidate(queryKeys.invitations),
   });
 }
 
@@ -51,7 +52,7 @@ export function useResendInvitation() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: (id: string) => adminService.resendInvitation(id),
-    onSuccess: () => invalidate(queryKeys.invitations),
+    onSettled: () => invalidate(queryKeys.invitations),
   });
 }
 

@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   API_ERROR_CODES,
   INVITATION_TTL_DAYS,
@@ -9,6 +9,7 @@ import {
 import type { TenantAuthContext } from '../../common/auth/auth-context';
 import { AppException } from '../../common/errors/app.exception';
 import { generateToken, sha256 } from '../../common/security/tokens';
+import { maskEmail } from '../../common/utils/request-meta';
 import { AppConfigService } from '../../config/app-config.service';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -42,6 +43,8 @@ export interface AcceptedInvitation {
  */
 @Injectable()
 export class InvitationsService {
+  private readonly logger = new Logger(InvitationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: AppConfigService,
@@ -284,21 +287,31 @@ export class InvitationsService {
   ): Promise<void> {
     const link = new URL('/convite', this.config.appUrl);
     link.searchParams.set('token', token);
-    await this.mail.send({
-      to: invitation.email,
-      subject: `Convite para ${auth.organization.name} — NEXUS CRM`,
-      text: [
-        'Olá!',
-        '',
-        `${auth.user.name} convidou você para participar da organização ${auth.organization.name} no NEXUS CRM, com o perfil ${ROLE_LABELS[invitation.role]}.`,
-        '',
-        `Para aceitar, acesse o link abaixo (válido por ${INVITATION_TTL_DAYS} dias):`,
-        '',
-        link.toString(),
-        '',
-        'Se você não esperava este convite, ignore este e-mail.',
-      ].join('\n'),
-    });
+    try {
+      await this.mail.send({
+        to: invitation.email,
+        subject: `Convite para ${auth.organization.name} — NEXUS CRM`,
+        text: [
+          'Olá!',
+          '',
+          `${auth.user.name} convidou você para participar da organização ${auth.organization.name} no NEXUS CRM, com o perfil ${ROLE_LABELS[invitation.role]}.`,
+          '',
+          `Para aceitar, acesse o link abaixo (válido por ${INVITATION_TTL_DAYS} dias):`,
+          '',
+          link.toString(),
+          '',
+          'Se você não esperava este convite, ignore este e-mail.',
+        ].join('\n'),
+      });
+    } catch (error) {
+      // O convite já foi gravado: o administrador pode reenviar quando o e-mail voltar a funcionar.
+      this.logger.error(
+        `Falha ao enviar o convite para ${maskEmail(invitation.email)}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw AppException.emailDelivery(
+        'O convite foi registrado, mas o e-mail não pôde ser enviado. Use "Reenviar" para tentar novamente.',
+      );
+    }
   }
 }
 

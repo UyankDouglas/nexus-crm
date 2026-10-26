@@ -28,6 +28,7 @@ describe('Administração (integração)', () => {
   beforeEach(async () => {
     await resetDatabase(ctx.prisma);
     ctx.mail.sent.length = 0;
+    ctx.mail.failing = false;
     s = await seedSalesScenario(ctx.prisma);
   });
 
@@ -249,6 +250,29 @@ describe('Administração (integração)', () => {
         (await admin.delete(`/organizations/current/invitations/${invitation.id}`)).status,
       ).toBe(204);
       expect((await admin.get('/organizations/current/invitations')).body).toEqual([]);
+    });
+
+    it('se o e-mail falhar, o convite fica pendente e o administrador é avisado', async () => {
+      const admin = await loginAs('admin');
+      ctx.mail.failing = true;
+
+      const failed = await admin.post('/organizations/current/invitations', {
+        email: 'sem-email@alpha.example',
+        role: 'SALES',
+      });
+      expect(failed.status).toBe(502);
+      expect(failed.body.code).toBe('EMAIL_DELIVERY_FAILED');
+      expect(failed.body.message).toMatch(/Reenviar/);
+
+      const pending = (await admin.get('/organizations/current/invitations').expect(200))
+        .body as InvitationItem[];
+      expect(pending.map((item) => item.email)).toEqual(['sem-email@alpha.example']);
+
+      ctx.mail.failing = false;
+      await admin
+        .post(`/organizations/current/invitations/${pending[0]!.id}/resend`)
+        .then((response) => expect(response.status).toBe(200));
+      expect(tokenSentTo('sem-email@alpha.example')).toBeTruthy();
     });
   });
 

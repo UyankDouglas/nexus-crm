@@ -66,10 +66,19 @@ export class AppConfigService {
   }
 
   get swaggerEnabled(): boolean {
-    return this.get('SWAGGER_ENABLED');
+    return this.get('SWAGGER_ENABLED') ?? !this.isProduction;
   }
 
   get mailOutboxDir(): string {
     return this.get('MAIL_OUTBOX_DIR');
+  }
+
+  /** URL do servidor SMTP — contém credenciais e nunca deve ser registrada em log. */
+  get smtpUrl(): string | undefined {
+    return this.get('SMTP_URL');
+  }
+
+  get mailFrom(): string {
+    return this.get('MAIL_FROM');
   }
 }

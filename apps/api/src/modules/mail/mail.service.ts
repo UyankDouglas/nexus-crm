@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
+import { createTransport, type Transporter } from 'nodemailer';
 import { maskEmail } from '../../common/utils/request-meta';
 import { slugify } from '../../common/utils/slug';
 import { AppConfigService } from '../../config/app-config.service';
@@ -12,20 +13,31 @@ export interface MailMessage {
 }
 
 /**
- * Envio de e-mails. Nesta fase não há provedor SMTP: em desenvolvimento as mensagens
- * são gravadas como arquivos `.eml` na pasta `MAIL_OUTBOX_DIR` (fora do Git), sem
- * registrar o conteúdo — que pode conter links com tokens — nos logs.
+ * Envio de e-mails (convites e redefinição de senha):
+ *  - com `SMTP_URL`, envia pelo servidor SMTP configurado;
+ *  - sem SMTP, em desenvolvimento grava cada mensagem como `.eml` em `MAIL_OUTBOX_DIR`;
+ *  - sem SMTP, em produção não envia e registra um aviso.
+ * O conteúdo (que contém links com tokens) e a URL do SMTP nunca vão para os logs.
  */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
+  private transporter?: Transporter;
 
   constructor(private readonly config: AppConfigService) {}
 
   async send(message: MailMessage): Promise<void> {
+    const smtpUrl = this.config.smtpUrl;
+    if (smtpUrl) {
+      this.transporter ??= createTransport(smtpUrl);
+      await this.transporter.sendMail({ from: this.config.mailFrom, ...message });
+      this.logger.log(`E-mail "${message.subject}" enviado para ${maskEmail(message.to)}`);
+      return;
+    }
+
     if (this.config.isProduction) {
       this.logger.warn(
-        `Nenhum provedor de e-mail configurado; mensagem "${message.subject}" para ${maskEmail(message.to)} não enviada.`,
+        `SMTP_URL não configurado; mensagem "${message.subject}" para ${maskEmail(message.to)} não enviada.`,
       );
       return;
     }
@@ -44,7 +56,7 @@ export class MailService {
 
   private toEml(message: MailMessage): string {
     return [
-      'From: NEXUS CRM <nao-responda@nexuscrm.local>',
+      `From: ${this.config.mailFrom}`,
       `To: ${message.to}`,
       `Subject: ${message.subject}`,
       `Date: ${new Date().toUTCString()}`,

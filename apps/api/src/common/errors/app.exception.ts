@@ -31,6 +31,11 @@ export class AppException extends HttpException {
     return new AppException(HttpStatus.CONFLICT, API_ERROR_CODES.CONFLICT, message);
   }
 
+  /** O servidor de e-mail recusou ou não respondeu; a operação principal já foi gravada. */
+  static emailDelivery(message: string): AppException {
+    return new AppException(HttpStatus.BAD_GATEWAY, API_ERROR_CODES.EMAIL_DELIVERY_FAILED, message);
+  }
+
   static validation(fieldErrors: Record<string, string[]>): AppException {
     return new AppException(
       HttpStatus.BAD_REQUEST,

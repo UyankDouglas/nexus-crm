@@ -218,6 +218,22 @@ describe('Autenticação (integração)', () => {
       expect(ctx.mail.sent).toHaveLength(0);
     });
 
+    it('falhas no envio do e-mail não revelam se a conta existe', async () => {
+      await seedSingleOrgUser();
+      ctx.mail.failing = true;
+      try {
+        const client = new HttpClient(ctx.app);
+        const existing = await client.post('/auth/forgot-password', { email: 'ana@alpha.example' });
+        const unknown = await client.post('/auth/forgot-password', {
+          email: 'ninguem@alpha.example',
+        });
+        expect([existing.status, unknown.status]).toEqual([202, 202]);
+        expect(existing.body.message).toBe(unknown.body.message);
+      } finally {
+        ctx.mail.failing = false;
+      }
+    });
+
     it('redefine a senha, invalida o token e encerra as sessões abertas', async () => {
       await seedSingleOrgUser();
       const loggedIn = new HttpClient(ctx.app);
