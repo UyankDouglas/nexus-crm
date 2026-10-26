@@ -18,6 +18,7 @@ import { HealthModule } from './modules/health/health.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { MailModule } from './modules/mail/mail.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -53,6 +54,7 @@ const ONE_MINUTE_MS = 60_000;
     TasksModule,
     ActivitiesModule,
     DashboardModule,
+    ReportsModule,
     HealthModule,
   ],
   providers: [
