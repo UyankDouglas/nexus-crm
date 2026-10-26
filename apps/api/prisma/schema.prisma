@@ -102,6 +102,8 @@ model User {
   createdDeals        Deal[]               @relation("DealCreatedBy")
   dealHistoryChanges  DealStageHistory[]   @relation("DealHistoryChangedBy")
   createdTasks        Task[]               @relation("TaskCreatedBy")
+  sentInvitations     Invitation[]         @relation("InvitationInvitedBy")
+  auditLogs           AuditLog[]           @relation("AuditActor")
 
   @@map("users")
 }
@@ -113,14 +115,16 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  members    OrganizationMember[]
-  sessions   Session[]
-  customers  Customer[]
-  contacts   Contact[]
-  pipelines  Pipeline[]
-  deals      Deal[]
-  tasks      Task[]
-  activities Activity[]
+  members     OrganizationMember[]
+  sessions    Session[]
+  customers   Customer[]
+  contacts    Contact[]
+  pipelines   Pipeline[]
+  deals       Deal[]
+  tasks       Task[]
+  activities  Activity[]
+  invitations Invitation[]
+  auditLogs   AuditLog[]
 
   @@map("organizations")
 }
@@ -423,4 +427,54 @@ model Activity {
   @@index([organizationId, dealId])
   @@index([organizationId, authorId])
   @@map("activities")
+}
+
+// ---------------------------------------------------------------------------
+// Administração
+// ---------------------------------------------------------------------------
+
+/// Convite para entrar na organização. O link carrega um token aleatório; o banco guarda só o hash.
+model Invitation {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  /// Sempre em minúsculas.
+  email          String     @db.VarChar(254)
+  role           MemberRole
+  tokenHash      String     @unique @map("token_hash") @db.Char(64)
+  invitedById    String?    @map("invited_by_id") @db.Uuid
+  expiresAt      DateTime   @map("expires_at") @db.Timestamptz(3)
+  acceptedAt     DateTime?  @map("accepted_at") @db.Timestamptz(3)
+  revokedAt      DateTime?  @map("revoked_at") @db.Timestamptz(3)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User?        @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, createdAt])
+  @@map("invitations")
+}
+
+/// Trilha de auditoria de ações importantes (somente inclusão).
+model AuditLog {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  actorId        String?  @map("actor_id") @db.Uuid
+  action         String   @db.VarChar(60)
+  entityType     String   @map("entity_type") @db.VarChar(40)
+  entityId       String?  @map("entity_id") @db.Uuid
+  /// Descrição legível, em português, gerada no momento da ação.
+  summary        String   @db.VarChar(300)
+  /// Detalhes estruturados (valores anteriores e novos). Nunca contém segredos.
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([organizationId, action])
+  @@index([organizationId, actorId])
+  @@map("audit_logs")
 }
