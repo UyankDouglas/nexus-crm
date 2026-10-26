@@ -1,4 +1,4 @@
-import type { CustomerStats, DealStats } from '@nexus/shared';
+import type { DashboardSummary } from '@nexus/shared';
 import {
   ArrowRight,
   CircleDollarSign,
@@ -13,15 +13,11 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, formatCurrencyCompact, formatPercent } from '@/lib/format';
 import { paths } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
-
-const plural = (count: number, singular: string, pluralForm: string) =>
-  `${count} ${count === 1 ? singular : pluralForm}`;
 
 function KpiCard({
   label,
@@ -70,20 +66,22 @@ function KpiLink({ to, children }: { to: string; children: ReactNode }) {
   );
 }
 
-function KpiHint({ children }: { children: ReactNode }) {
-  return <p className="mt-auto text-xs text-muted-foreground">{children}</p>;
+function KpiHint({ children, className }: { children: ReactNode; className?: string }) {
+  return <p className={cn('mt-auto text-xs text-muted-foreground', className)}>{children}</p>;
 }
 
 interface KpiGridProps {
-  customerStats: CustomerStats | undefined;
-  dealStats: DealStats | undefined;
+  summary: DashboardSummary | undefined;
+  /** Rótulo do período selecionado (ex.: "Últimos 90 dias"). */
+  periodLabel: string;
 }
 
 /**
- * Indicadores comerciais calculados pela API sobre os dados reais, respeitando a carteira de
- * cada perfil. O indicador de tarefas informa de onde virão os dados — nenhum número fictício.
+ * Indicadores comerciais calculados pela API sobre os dados reais e o escopo do usuário.
+ * Carteira, pipeline e tarefas são a situação atual; resultados seguem o período escolhido.
  */
-export function KpiGrid({ customerStats, dealStats: deals }: KpiGridProps) {
+export function KpiGrid({ summary, periodLabel }: KpiGridProps) {
+  const results = summary?.results;
   return (
     <section aria-labelledby="kpis-title" className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -91,31 +89,27 @@ export function KpiGrid({ customerStats, dealStats: deals }: KpiGridProps) {
           Indicadores comerciais
         </h2>
         <p className="text-xs text-muted-foreground">
-          Calculados a partir dos dados reais que você pode acessar.
+          Resultados de {periodLabel.toLowerCase()} · carteira e pipeline na situação atual
         </p>
       </div>
       <ul className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <li>
           <KpiCard label="Total de clientes" icon={Users}>
-            <KpiValue value={customerStats && String(customerStats.total)} />
-            <KpiLink to={paths.customers}>
-              {customerStats
-                ? `${plural(customerStats.byStatus.LEAD, 'lead', 'leads')} · ${plural(customerStats.byStatus.ACTIVE, 'ativo', 'ativos')}`
-                : 'Ver clientes'}
-            </KpiLink>
+            <KpiValue value={summary && String(summary.customers.total)} />
+            <KpiLink to={paths.customers}>Ver clientes</KpiLink>
           </KpiCard>
         </li>
         <li>
           <KpiCard label="Oportunidades abertas" icon={Handshake}>
-            <KpiValue value={deals && String(deals.open.count)} />
+            <KpiValue value={summary && String(summary.pipeline.openCount)} />
             <KpiLink to={paths.pipeline}>Ver funil de vendas</KpiLink>
           </KpiCard>
         </li>
         <li>
           <KpiCard label="Valor total do pipeline" icon={Wallet}>
             <KpiValue
-              value={deals && formatCurrencyCompact(deals.open.value)}
-              title={deals && formatCurrency(deals.open.value)}
+              value={summary && formatCurrencyCompact(summary.pipeline.openValue)}
+              title={summary && formatCurrency(summary.pipeline.openValue)}
             />
             <KpiHint>Soma dos negócios em andamento</KpiHint>
           </KpiCard>
@@ -124,20 +118,21 @@ export function KpiGrid({ customerStats, dealStats: deals }: KpiGridProps) {
           <KpiCard label="Taxa de conversão" icon={Percent} tone="bg-warning/15 text-warning">
             <KpiValue
               value={
-                deals && (deals.conversionRate === null ? '—' : formatPercent(deals.conversionRate))
+                results &&
+                (results.conversionRate === null ? '—' : formatPercent(results.conversionRate))
               }
             />
             <KpiHint>
-              {deals?.conversionRate === null
-                ? 'Sem negócios encerrados ainda'
-                : 'Ganhos sobre negócios encerrados'}
+              {results?.conversionRate === null
+                ? 'Sem negócios encerrados no período'
+                : 'Ganhos sobre encerrados no período'}
             </KpiHint>
           </KpiCard>
         </li>
         <li>
           <KpiCard label="Negociações ganhas" icon={Trophy} tone="bg-success/15 text-success">
-            <KpiValue value={deals && String(deals.won.count)} />
-            <KpiHint>Encerradas com sucesso</KpiHint>
+            <KpiValue value={results && String(results.wonCount)} />
+            <KpiHint>{periodLabel}</KpiHint>
           </KpiCard>
         </li>
         <li>
@@ -147,10 +142,10 @@ export function KpiGrid({ customerStats, dealStats: deals }: KpiGridProps) {
             tone="bg-success/15 text-success"
           >
             <KpiValue
-              value={deals && formatCurrencyCompact(deals.won.value)}
-              title={deals && formatCurrency(deals.won.value)}
+              value={results && formatCurrencyCompact(results.wonValue)}
+              title={results && formatCurrency(results.wonValue)}
             />
-            <KpiHint>Valor dos negócios ganhos</KpiHint>
+            <KpiHint>{periodLabel}</KpiHint>
           </KpiCard>
         </li>
         <li>
@@ -159,19 +154,20 @@ export function KpiGrid({ customerStats, dealStats: deals }: KpiGridProps) {
             icon={CircleX}
             tone="bg-destructive/10 text-destructive"
           >
-            <KpiValue value={deals && String(deals.lost.count)} />
-            <KpiHint>Motivos registrados em cada negócio</KpiHint>
+            <KpiValue value={results && String(results.lostCount)} />
+            <KpiHint>{periodLabel}</KpiHint>
           </KpiCard>
         </li>
         <li>
           <KpiCard label="Tarefas pendentes" icon={ListChecks}>
-            <p className="text-2xl font-semibold tracking-tight text-muted-foreground/60">
-              <span aria-hidden="true">—</span>
-              <span className="sr-only">Sem dados</span>
-            </p>
-            <Badge variant="outline" className="mt-auto w-fit font-normal text-muted-foreground">
-              Tarefas e atividades · Fase 4
-            </Badge>
+            <KpiValue value={summary && String(summary.tasks.open)} />
+            {summary && summary.tasks.overdue > 0 ? (
+              <KpiLink to={`${paths.tasks}?due=overdue`}>
+                {summary.tasks.overdue} {summary.tasks.overdue === 1 ? 'atrasada' : 'atrasadas'}
+              </KpiLink>
+            ) : (
+              <KpiLink to={paths.tasks}>Ver tarefas</KpiLink>
+            )}
           </KpiCard>
         </li>
       </ul>
