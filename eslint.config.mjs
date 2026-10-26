@@ -38,7 +38,12 @@ export default defineConfig(
 
   // API (NestJS) e pacote compartilhado: ambiente Node.
   {
-    files: ['apps/api/**/*.ts', 'packages/shared/**/*.ts', '**/*.config.{ts,mjs,js}'],
+    files: [
+      'apps/api/**/*.ts',
+      'packages/shared/**/*.ts',
+      'e2e/**/*.ts',
+      '**/*.config.{ts,mjs,js}',
+    ],
     languageOptions: { globals: globals.node },
   },
   {
@@ -61,6 +66,11 @@ export default defineConfig(
     files: ['apps/web/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     extends: [reactHooks.configs.flat['recommended-latest'], reactRefresh.configs.vite],
+  },
+  {
+    // Scripts estáticos servidos sem build (ex.: tema aplicado antes do React).
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { globals: globals.browser, sourceType: 'script' },
   },
   {
     // Componentes gerados pelo shadcn/ui exportam variantes junto dos componentes.

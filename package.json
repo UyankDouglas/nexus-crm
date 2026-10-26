@@ -18,6 +18,7 @@
     "format:check": "prettier --check .",
     "test": "pnpm --filter @nexus/shared build && pnpm -r test",
     "test:integration": "pnpm --filter @nexus/api test:integration",
+    "test:e2e": "pnpm --filter @nexus/e2e e2e",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @nexus/api prisma:migrate",

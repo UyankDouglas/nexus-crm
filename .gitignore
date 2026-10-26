@@ -15,11 +15,14 @@ apps/api/src/generated/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Caixa de saída de e-mails em desenvolvimento
 apps/api/.mail-outbox/
 
 # Playwright
+e2e/.auth/
+e2e/.mail-outbox/
 test-results/
 playwright-report/
 blob-report/
