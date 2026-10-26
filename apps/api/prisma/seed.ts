@@ -10,7 +10,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as argon2 from 'argon2';
-import { completeCnpj, completeCpf } from '@nexus/shared';
+import { addDays, BUSINESS_TIME_ZONE, completeCnpj, completeCpf } from '@nexus/shared';
 import { PrismaClient, type MemberRole } from '../src/generated/prisma/client';
 import {
   HORIZONTE_CUSTOMERS,
@@ -18,7 +18,16 @@ import {
   type DemoCustomer,
   type DemoOwner,
 } from './demo-customers';
-import { HORIZONTE_DEALS, VERTICE_DEALS, type DemoDeal } from './demo-deals';
+import {
+  HORIZONTE_ACTIVITIES,
+  HORIZONTE_TASKS,
+  VERTICE_ACTIVITIES,
+  VERTICE_TASKS,
+  type DemoActivity,
+  type DemoTask,
+} from './demo-activities';
+import { HORIZONTE_DEALS, HORIZONTE_PAST_DEALS, VERTICE_DEALS, type DemoDeal } from './demo-deals';
+import { zonedIsoDate, zonedStartOfDay } from '../src/common/time/zoned-date';
 import { createDefaultPipeline } from '../src/modules/deals/default-pipeline';
 
 interface DemoUser {
@@ -130,16 +139,40 @@ async function main(): Promise<void> {
     }
 
     const demoData = [
-      { slug: 'horizonte-demo', customers: HORIZONTE_CUSTOMERS, deals: HORIZONTE_DEALS },
-      { slug: 'vertice-demo', customers: VERTICE_CUSTOMERS, deals: VERTICE_DEALS },
+      {
+        slug: 'horizonte-demo',
+        customers: HORIZONTE_CUSTOMERS,
+        deals: [...HORIZONTE_DEALS, ...HORIZONTE_PAST_DEALS],
+        tasks: HORIZONTE_TASKS,
+        activities: HORIZONTE_ACTIVITIES,
+      },
+      {
+        slug: 'vertice-demo',
+        customers: VERTICE_CUSTOMERS,
+        deals: VERTICE_DEALS,
+        tasks: VERTICE_TASKS,
+        activities: VERTICE_ACTIVITIES,
+      },
     ];
     for (const demo of demoData) {
       const organizationId = organizationIds.get(demo.slug)!;
-      // Negócios primeiro: eles referenciam clientes (FK sem cascata).
+      // Tarefas, atividades e negócios primeiro: referenciam clientes e negócios sem cascata.
+      await prisma.task.deleteMany({ where: { organizationId } });
+      await prisma.activity.deleteMany({ where: { organizationId } });
       await prisma.deal.deleteMany({ where: { organizationId } });
       const customerIds = await seedCustomers(prisma, organizationId, demo.customers, userIds);
       const pipelineId = await ensureDefaultPipeline(prisma, organizationId);
-      await seedDeals(prisma, organizationId, pipelineId, demo.deals, customerIds, userIds);
+      const dealIds = await seedDeals(
+        prisma,
+        organizationId,
+        pipelineId,
+        demo.deals,
+        customerIds,
+        userIds,
+      );
+      const refs = { customerIds, dealIds, userIds };
+      await seedTasks(prisma, organizationId, demo.tasks, refs);
+      await seedActivities(prisma, organizationId, demo.activities, refs);
     }
 
     console.log('Seed de demonstração concluída:');
@@ -153,7 +186,10 @@ async function main(): Promise<void> {
       `Clientes fictícios: ${HORIZONTE_CUSTOMERS.length} (Horizonte) e ${VERTICE_CUSTOMERS.length} (Vértice).`,
     );
     console.log(
-      `Negócios fictícios: ${HORIZONTE_DEALS.length} (Horizonte) e ${VERTICE_DEALS.length} (Vértice).`,
+      `Negócios fictícios: ${HORIZONTE_DEALS.length + HORIZONTE_PAST_DEALS.length} (Horizonte) e ${VERTICE_DEALS.length} (Vértice).`,
+    );
+    console.log(
+      `Tarefas fictícias: ${HORIZONTE_TASKS.length + VERTICE_TASKS.length}; atividades: ${HORIZONTE_ACTIVITIES.length + VERTICE_ACTIVITIES.length}.`,
     );
     console.log('Senha das contas: valor de SEED_DEMO_PASSWORD no arquivo .env');
   } finally {
@@ -254,7 +290,8 @@ async function seedDeals(
   deals: DemoDeal[],
   customerIds: Map<string, string>,
   userIds: Map<string, string>,
-): Promise<void> {
+): Promise<Map<string, string>> {
+  const dealIds = new Map<string, string>();
   const stages = await prisma.pipelineStage.findMany({
     where: { pipelineId },
     orderBy: { position: 'asc' },
@@ -309,6 +346,7 @@ async function seedDeals(
       },
       select: { id: true },
     });
+    dealIds.set(demo.title, deal.id);
 
     await prisma.dealStageHistory.createMany({
       data: path.map((item, index) => ({
@@ -326,6 +364,83 @@ async function seedDeals(
       })),
     });
   }
+  return dealIds;
+}
+
+interface DemoRefs {
+  customerIds: Map<string, string>;
+  dealIds: Map<string, string>;
+  userIds: Map<string, string>;
+}
+
+function lookup(map: Map<string, string>, key: string, label: string): string {
+  const id = map.get(key);
+  if (!id) throw new Error(`${label} inexistente na seed: ${key}`);
+  return id;
+}
+
+/** Tarefas com prazos relativos a hoje (fuso de negócio): atrasadas, do dia e futuras. */
+async function seedTasks(
+  prisma: PrismaClient,
+  organizationId: string,
+  tasks: DemoTask[],
+  refs: DemoRefs,
+): Promise<void> {
+  const today = zonedIsoDate(new Date(), BUSINESS_TIME_ZONE);
+  const now = Date.now();
+  await prisma.task.createMany({
+    data: tasks.map((demo) => {
+      const status = demo.status ?? 'TODO';
+      const dueDate = addDays(today, demo.dueInDays);
+      const createdAt = new Date(now - (Math.max(0, -demo.dueInDays) + 3) * DAY_MS);
+      return {
+        organizationId,
+        title: demo.title,
+        description: demo.description ?? null,
+        status,
+        priority: demo.priority,
+        dueDate: new Date(`${dueDate}T00:00:00.000Z`),
+        completedAt:
+          status === 'DONE' ? new Date(now - Math.max(0, -demo.dueInDays) * DAY_MS) : null,
+        assigneeId: lookup(refs.userIds, demo.assignee, 'Usuário'),
+        customerId: demo.customer ? lookup(refs.customerIds, demo.customer, 'Cliente') : null,
+        dealId: demo.deal ? lookup(refs.dealIds, demo.deal, 'Negócio') : null,
+        createdById: lookup(refs.userIds, demo.createdBy ?? demo.assignee, 'Usuário'),
+        createdAt,
+        updatedAt: createdAt,
+      };
+    }),
+  });
+}
+
+/** Interações registradas nos últimos dias, no horário comercial de Brasília. */
+async function seedActivities(
+  prisma: PrismaClient,
+  organizationId: string,
+  activities: DemoActivity[],
+  refs: DemoRefs,
+): Promise<void> {
+  const now = Date.now();
+  await prisma.activity.createMany({
+    data: activities.map((demo) => {
+      const day = zonedIsoDate(new Date(now - demo.daysAgo * DAY_MS), BUSINESS_TIME_ZONE);
+      const scheduled = zonedStartOfDay(day, BUSINESS_TIME_ZONE).getTime() + demo.hour * 3_600_000;
+      // Nunca no futuro: registros de hoje ficam, no máximo, uma hora atrás.
+      const occurredAt = new Date(Math.min(scheduled, now - 3_600_000));
+      return {
+        organizationId,
+        type: demo.type,
+        subject: demo.subject,
+        description: demo.description ?? null,
+        occurredAt,
+        customerId: lookup(refs.customerIds, demo.customer, 'Cliente'),
+        dealId: demo.deal ? lookup(refs.dealIds, demo.deal, 'Negócio') : null,
+        authorId: lookup(refs.userIds, demo.author, 'Usuário'),
+        createdAt: occurredAt,
+        updatedAt: occurredAt,
+      };
+    }),
+  });
 }
 
 main().catch((error: unknown) => {

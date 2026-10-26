@@ -59,3 +59,30 @@ export const VERTICE_DEALS: DemoDeal[] = [
   { title: 'Coleção didática 2027', customer: 'cordel', owner: 'carlos', value: 36000, stage: 'Proposta enviada', createdDaysAgo: 7, expectedInDays: 20 },
   { title: 'Lançamento residencial', customer: 'duna', owner: 'beatriz', value: 410000, stage: 'Ganho', createdDaysAgo: 70, closedDaysAgo: 15 },
 ]; // prettier-ignore
+
+/**
+ * Negócios encerrados ao longo do último ano: alimentam os gráficos de vendas e receita do
+ * dashboard. Ficam fora do quadro (encerrados há mais de 30 dias), mas entram nos totais.
+ */
+export const HORIZONTE_PAST_DEALS: DemoDeal[] = [
+  { title: 'Implantação do ERP — fase 1', customer: 'aurora', owner: 'juliana', value: 68000, stage: 'Ganho', createdDaysAgo: 380, closedDaysAgo: 335 },
+  { title: 'Câmaras frias — manutenção anual', customer: 'mare', owner: 'rafael', value: 24000, stage: 'Ganho', createdDaysAgo: 350, closedDaysAgo: 310 },
+  { title: 'Portal do cliente', customer: 'nimbus', owner: 'juliana', value: 39000, stage: 'Perdido', createdDaysAgo: 330, closedDaysAgo: 290, lostReason: 'Escolheu um concorrente' },
+  { title: 'Rastreamento de frota', customer: 'delta', owner: 'carlos', value: 52000, stage: 'Ganho', createdDaysAgo: 310, closedDaysAgo: 268 },
+  { title: 'Linha de embalagens recicláveis', customer: 'belavista', owner: 'rafael', value: 87000, stage: 'Ganho', createdDaysAgo: 290, closedDaysAgo: 245 },
+  { title: 'Campanha de verão', customer: 'orla', owner: 'rafael', value: 18000, stage: 'Perdido', createdDaysAgo: 260, closedDaysAgo: 230, lostReason: 'Projeto adiado ou cancelado' },
+  { title: 'Consultoria tributária', customer: 'farol', owner: 'rafael', value: 21000, stage: 'Ganho', createdDaysAgo: 245, closedDaysAgo: 212 },
+  { title: 'Kit de boas-vindas para clientes', customer: 'gaia', owner: 'juliana', value: 15500, stage: 'Ganho', createdDaysAgo: 230, closedDaysAgo: 198 },
+  { title: 'Monitoramento de silos', customer: 'jatoba', owner: 'carlos', value: 96000, stage: 'Ganho', createdDaysAgo: 220, closedDaysAgo: 181 },
+  { title: 'Agenda on-line para consultórios', customer: 'lumen', owner: 'juliana', value: 27000, stage: 'Perdido', createdDaysAgo: 200, closedDaysAgo: 166, lostReason: 'Sem orçamento no momento' },
+  { title: 'Showroom virtual', customer: 'ipe', owner: 'rafael', value: 33000, stage: 'Ganho', createdDaysAgo: 185, closedDaysAgo: 152 },
+  { title: 'Treinamento de vendas consultivas', customer: 'marina', owner: 'juliana', value: 8200, stage: 'Ganho', createdDaysAgo: 160, closedDaysAgo: 131 },
+  { title: 'Rede Wi-Fi corporativa', customer: 'quasar', owner: 'carlos', value: 44000, stage: 'Perdido', createdDaysAgo: 150, closedDaysAgo: 118, lostReason: 'Preço acima do orçamento' },
+  { title: 'Cafeteria conceito', customer: 'raizes', owner: 'juliana', value: 36500, stage: 'Ganho', createdDaysAgo: 140, closedDaysAgo: 104 },
+  { title: 'Eficiência energética — galpão', customer: 'solaris', owner: 'rafael', value: 58000, stage: 'Ganho', createdDaysAgo: 120, closedDaysAgo: 86 },
+  { title: 'Suporte premium 24×7', customer: 'nimbus', owner: 'juliana', value: 49000, stage: 'Ganho', createdDaysAgo: 100, closedDaysAgo: 63 },
+  { title: 'Reforma da sede', customer: 'cobalto', owner: 'juliana', value: 72000, stage: 'Perdido', createdDaysAgo: 90, closedDaysAgo: 52, lostReason: 'Necessidade não atendida' },
+  { title: 'Armazenagem sazonal', customer: 'delta', owner: 'carlos', value: 41000, stage: 'Ganho', createdDaysAgo: 80, closedDaysAgo: 45 },
+  { title: 'Assessoria de importação', customer: 'camila', owner: 'rafael', value: 12500, stage: 'Ganho', createdDaysAgo: 70, closedDaysAgo: 38 },
+  { title: 'Inventário automatizado', customer: 'aurora', owner: 'juliana', value: 31000, stage: 'Ganho', createdDaysAgo: 60, closedDaysAgo: 33 },
+]; // prettier-ignore
