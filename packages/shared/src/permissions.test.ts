@@ -42,6 +42,15 @@ describe('permissões RBAC', () => {
     expect(hasPermission('SALES', 'activities:delete')).toBe(false);
   });
 
+  it('reserva administração e auditoria ao administrador e relatórios à gestão', () => {
+    expect(hasPermission('ADMIN', 'members:manage')).toBe(true);
+    expect(hasPermission('MANAGER', 'members:manage')).toBe(false);
+    expect(hasPermission('MANAGER', 'pipelines:manage')).toBe(false);
+    expect(hasPermission('MANAGER', 'audit:read')).toBe(false);
+    expect(hasPermission('MANAGER', 'reports:export')).toBe(true);
+    expect(hasPermission('SALES', 'reports:read')).toBe(false);
+  });
+
   it('reserva a reabertura de negócios encerrados à gestão', () => {
     expect(hasPermission('MANAGER', 'deals:reopen')).toBe(true);
     expect(hasPermission('SALES', 'deals:reopen')).toBe(false);

@@ -1,4 +1,5 @@
 export * from './activities.js';
+export * from './admin.js';
 export * from './api-types.js';
 export * from './auth.js';
 export * from './customers.js';
@@ -7,5 +8,6 @@ export * from './deals.js';
 export * from './documents.js';
 export * from './organization.js';
 export * from './permissions.js';
+export * from './reports.js';
 export * from './roles.js';
 export * from './tasks.js';

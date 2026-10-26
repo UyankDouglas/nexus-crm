@@ -1,4 +1,5 @@
 import type { ActivityType } from './activities.js';
+import type { AuditAction } from './admin.js';
 import type { BrazilianState, CustomerStatus, CustomerType } from './customers.js';
 import type { Granularity } from './dashboard.js';
 import type { DealStatus, StageKind } from './deals.js';
@@ -15,6 +16,7 @@ export const API_ERROR_CODES = {
   EMAIL_IN_USE: 'EMAIL_IN_USE',
   ORGANIZATION_REQUIRED: 'ORGANIZATION_REQUIRED',
   INVALID_RESET_TOKEN: 'INVALID_RESET_TOKEN',
+  INVALID_INVITATION: 'INVALID_INVITATION',
   NOT_FOUND: 'NOT_FOUND',
   CONFLICT: 'CONFLICT',
   RATE_LIMITED: 'RATE_LIMITED',
@@ -331,6 +333,108 @@ export interface DashboardSummary {
   sellers: SellerPerformance[];
   /** Negócios criados no período, pelo status atual. */
   distribution: { open: number; won: number; lost: number };
+}
+
+// ---------------------------------------------------------------------------
+// Administração
+// ---------------------------------------------------------------------------
+
+export interface InvitationItem {
+  id: string;
+  email: string;
+  role: MemberRole;
+  invitedBy: UserSummary | null;
+  createdAt: string;
+  expiresAt: string;
+  expired: boolean;
+}
+
+/** Dados exibidos na página pública de aceite (o token vale como prova de posse do e-mail). */
+export interface InvitationPreview {
+  organizationName: string;
+  email: string;
+  role: MemberRole;
+  invitedBy: string | null;
+  expiresAt: string;
+  /** Já existe conta com o e-mail: o aceite apenas adiciona a organização. */
+  accountExists: boolean;
+}
+
+export interface AcceptInvitationResponse {
+  organizationId: string;
+  organizationName: string;
+  accountCreated: boolean;
+  /** Nova conta: a sessão já foi iniciada (cookie). */
+  signedIn: boolean;
+}
+
+export interface AuditLogItem {
+  id: string;
+  action: AuditAction;
+  entityType: string;
+  entityId: string | null;
+  summary: string;
+  actor: UserSummary | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Relatórios
+// ---------------------------------------------------------------------------
+
+export interface SellerReportRow extends SellerPerformance {
+  /** Receita ganha ÷ negócios ganhos no período. */
+  averageTicket: number | null;
+  /** Atividades registradas pelo membro no período. */
+  activities: number;
+  /** Tarefas sob sua responsabilidade concluídas no período. */
+  tasksCompleted: number;
+}
+
+export interface PipelineStageReport extends StageSummary {
+  pipelineId: string;
+  pipelineName: string;
+  probability: number;
+  /** Valor × probabilidade da etapa (previsão ponderada). */
+  weightedValue: number;
+}
+
+export interface LossReasonSummary {
+  reason: string;
+  count: number;
+  value: number;
+}
+
+export interface ReportsOverview {
+  period: { from: string; to: string; granularity: Granularity };
+  totals: {
+    wonCount: number;
+    wonValue: number;
+    lostCount: number;
+    lostValue: number;
+    conversionRate: number | null;
+    averageTicket: number | null;
+    openCount: number;
+    openValue: number;
+    weightedValue: number;
+  };
+  sellers: SellerReportRow[];
+  revenue: SalesBucket[];
+  pipeline: PipelineStageReport[];
+  lossReasons: LossReasonSummary[];
+}
+
+export interface ClosedDealItem {
+  id: string;
+  title: string;
+  status: 'WON' | 'LOST';
+  value: number;
+  closedAt: string;
+  stageName: string;
+  lostReason: string | null;
+  customer: CustomerSummary;
+  owner: UserSummary | null;
 }
 
 export interface HealthResponse {
