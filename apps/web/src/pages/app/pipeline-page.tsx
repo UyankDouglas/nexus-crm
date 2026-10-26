@@ -58,7 +58,7 @@ export function PipelinePage() {
   const openDealParam = searchParams.get(DEAL_PARAM);
   const openDealId = openDealParam && UUID.test(openDealParam) ? openDealParam : null;
   const formMode: DealFormMode = creating
-    ? { kind: 'create' }
+    ? { kind: 'create', pipelineId: pipeline?.id }
     : editingId
       ? { kind: 'edit', dealId: editingId }
       : null;

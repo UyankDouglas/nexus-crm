@@ -25,11 +25,13 @@ const STAGES: PipelineStageItem[] = [
   { id: '01a16a74-0000-7000-8000-0000000000a2', name: 'Qualificação', kind: 'OPEN', probability: 40, position: 1 },
 ]; // prettier-ignore
 
+const GROUPS = [{ id: '01a16a74-0000-7000-8000-0000000000f1', name: 'Vendas', stages: STAGES }];
+
 function renderForm(onSubmit = vi.fn().mockResolvedValue(undefined)) {
   render(
     <DealForm
       deal={null}
-      openStages={STAGES}
+      stageGroups={GROUPS}
       initialCustomer={CUSTOMER}
       onSubmit={onSubmit}
       onCancel={vi.fn()}
@@ -96,5 +98,28 @@ describe('DealForm', () => {
 
     expect(onSubmit).toHaveBeenCalled();
     expect(await screen.findByText('Cliente não encontrado.')).toBeInTheDocument();
+  });
+
+  it('com mais de um funil, indica o funil da etapa inicial escolhida', () => {
+    const expansion = {
+      id: '01a16a74-0000-7000-8000-0000000000f2',
+      name: 'Expansão',
+      stages: [{ ...STAGES[0]!, id: '01a16a74-0000-7000-8000-0000000000b1', name: 'Diagnóstico' }],
+    };
+    render(
+      <DealForm
+        deal={null}
+        stageGroups={[...GROUPS, expansion]}
+        initialStageId={expansion.stages[0]!.id}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+        submitLabel="Cadastrar"
+      />,
+    );
+
+    expect(screen.getByText('Funil: Expansão')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Etapa inicial' })).toHaveTextContent(
+      'Diagnóstico',
+    );
   });
 });

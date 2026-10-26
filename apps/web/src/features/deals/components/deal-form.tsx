@@ -19,7 +19,9 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -51,11 +53,18 @@ const FIELD_NAMES: Array<keyof DealFormFields> = [
   'title', 'customerId', 'stageId', 'value', 'expectedCloseDate', 'ownerId', 'notes',
 ]; // prettier-ignore
 
+/** Etapas em andamento de um funil, oferecidas como etapa inicial no cadastro. */
+export interface StageGroup {
+  id: string;
+  name: string;
+  stages: PipelineStageItem[];
+}
+
 interface DealFormProps {
   /** Negócio em edição; `null` para cadastro. */
   deal: DealDetail | null;
-  /** Etapas em andamento, para escolher a etapa inicial no cadastro. */
-  openStages: PipelineStageItem[];
+  /** Funis com as etapas em andamento; o primeiro fornece a etapa inicial sugerida. */
+  stageGroups: StageGroup[];
   initialCustomer?: CustomerSummary | null;
   initialStageId?: string;
   onSubmit: (values: DealInput) => Promise<unknown>;
@@ -65,7 +74,7 @@ interface DealFormProps {
 
 export function DealForm({
   deal,
-  openStages,
+  stageGroups,
   initialCustomer = null,
   initialStageId,
   onSubmit,
@@ -86,7 +95,7 @@ export function DealForm({
     defaultValues: {
       title: deal?.title ?? '',
       customerId: deal?.customer.id ?? initialCustomer?.id ?? '',
-      stageId: initialStageId ?? openStages[0]?.id ?? '',
+      stageId: initialStageId ?? stageGroups[0]?.stages[0]?.id ?? '',
       value: deal ? numberFormatter.format(deal.value) : '',
       expectedCloseDate: deal?.expectedCloseDate ?? '',
       ownerId: deal ? (deal.owner?.id ?? '') : me.user.id,
@@ -189,23 +198,37 @@ export function DealForm({
               <Controller
                 control={form.control}
                 name="stageId"
-                render={({ field }) => (
-                  <Field>
-                    <FieldLabel htmlFor="field-stageId">Etapa inicial</FieldLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger id="field-stageId" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {openStages.map((stage) => (
-                          <SelectItem key={stage.id} value={stage.id}>
-                            {stage.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                )}
+                render={({ field }) => {
+                  const multiple = stageGroups.length > 1;
+                  const selectedGroup = stageGroups.find((group) =>
+                    group.stages.some((stage) => stage.id === field.value),
+                  );
+                  return (
+                    <Field>
+                      <FieldLabel htmlFor="field-stageId">Etapa inicial</FieldLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger id="field-stageId" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {stageGroups.map((group) => (
+                            <SelectGroup key={group.id}>
+                              {multiple && <SelectLabel>{group.name}</SelectLabel>}
+                              {group.stages.map((stage) => (
+                                <SelectItem key={stage.id} value={stage.id}>
+                                  {stage.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {multiple && selectedGroup && (
+                        <FieldDescription>Funil: {selectedGroup.name}</FieldDescription>
+                      )}
+                    </Field>
+                  );
+                }}
               />
             )}
 

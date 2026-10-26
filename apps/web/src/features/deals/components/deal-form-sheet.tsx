@@ -10,10 +10,16 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRetainedValue } from '@/hooks/use-retained-value';
 import { useCreateDeal, useDeal, usePipelines, useUpdateDeal } from '../hooks';
-import { DealForm } from './deal-form';
+import { DealForm, type StageGroup } from './deal-form';
 
 export type DealFormMode =
-  | { kind: 'create'; customer?: CustomerSummary | null; stageId?: string }
+  | {
+      kind: 'create';
+      customer?: CustomerSummary | null;
+      stageId?: string;
+      /** Funil sugerido (o aberto no quadro); sem ele, o funil padrão. */
+      pipelineId?: string;
+    }
   | { kind: 'edit'; dealId: string }
   | null;
 
@@ -41,6 +47,7 @@ export function DealFormSheet({ mode: currentMode, onClose, onCreated }: DealFor
           <CreateDeal
             customer={mode.customer ?? null}
             stageId={mode.stageId}
+            pipelineId={mode.pipelineId}
             onClose={onClose}
             onCreated={onCreated}
           />
@@ -61,28 +68,43 @@ function FormSkeleton() {
   );
 }
 
-function useOpenStages() {
+/** Etapas em andamento de cada funil, com o funil sugerido (ou o padrão) em primeiro lugar. */
+function useStageGroups(preferredPipelineId?: string): {
+  isLoading: boolean;
+  groups: StageGroup[];
+} {
   const pipelines = usePipelines();
-  const pipeline = pipelines.data?.find((item) => item.isDefault) ?? pipelines.data?.[0];
+  const list = pipelines.data ?? [];
+  const preferred =
+    list.find((item) => item.id === preferredPipelineId) ??
+    list.find((item) => item.isDefault) ??
+    list[0];
+  const ordered = preferred ? [preferred, ...list.filter((item) => item !== preferred)] : list;
   return {
     isLoading: pipelines.isPending,
-    stages: pipeline?.stages.filter((stage) => stage.kind === 'OPEN') ?? [],
+    groups: ordered.map((pipeline) => ({
+      id: pipeline.id,
+      name: pipeline.name,
+      stages: pipeline.stages.filter((stage) => stage.kind === 'OPEN'),
+    })),
   };
 }
 
 function CreateDeal({
   customer,
   stageId,
+  pipelineId,
   onClose,
   onCreated,
 }: {
   customer: CustomerSummary | null;
   stageId?: string;
+  pipelineId?: string;
   onClose: () => void;
   onCreated?: (deal: DealDetail) => void;
 }) {
   const create = useCreateDeal();
-  const { stages, isLoading } = useOpenStages();
+  const { groups, isLoading } = useStageGroups(pipelineId);
 
   const submit = async (values: DealInput) => {
     const deal = await create.mutateAsync(values);
@@ -95,7 +117,7 @@ function CreateDeal({
   return (
     <DealForm
       deal={null}
-      openStages={stages}
+      stageGroups={groups}
       initialCustomer={customer}
       initialStageId={stageId}
       onSubmit={submit}
@@ -108,7 +130,7 @@ function CreateDeal({
 function EditDeal({ dealId, onClose }: { dealId: string; onClose: () => void }) {
   const deal = useDeal(dealId);
   const update = useUpdateDeal(dealId);
-  const { stages } = useOpenStages();
+  const { groups } = useStageGroups();
 
   const submit = async ({ stageId: _stageId, ...values }: DealInput) => {
     const updated = await update.mutateAsync(values);
@@ -124,7 +146,7 @@ function EditDeal({ dealId, onClose }: { dealId: string; onClose: () => void }) 
     <DealForm
       key={deal.data.id}
       deal={deal.data}
-      openStages={stages}
+      stageGroups={groups}
       onSubmit={submit}
       onCancel={onClose}
       submitLabel="Salvar alterações"
