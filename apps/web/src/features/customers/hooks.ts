@@ -35,10 +35,14 @@ export function useCustomerStats() {
   });
 }
 
-/** Qualquer alteração em clientes invalida listas, detalhes, tags e totais. */
+/** Qualquer alteração em clientes invalida listas, detalhes, tags, totais e o dashboard. */
 function useInvalidateCustomers() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+    ]);
 }
 
 export function useCreateCustomer() {
@@ -68,7 +72,15 @@ export function useDeleteCustomer(onDeleted?: (id: string) => void) {
     onSuccess: (_data, id) => {
       onDeleted?.(id);
       queryClient.removeQueries({ queryKey: queryKeys.customers.detail(id) });
-      return queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
+      // Tarefas e atividades do cliente são excluídas junto com ele.
+      return Promise.all(
+        [
+          queryKeys.customers.all,
+          queryKeys.tasks.all,
+          queryKeys.activities.all,
+          queryKeys.dashboard.all,
+        ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      );
     },
   });
 }

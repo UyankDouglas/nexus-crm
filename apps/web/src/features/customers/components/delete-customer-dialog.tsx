@@ -41,8 +41,9 @@ export function DeleteCustomerDialog({ customer, onClose, onDeleted }: DeleteCus
           </AlertDialogMedia>
           <AlertDialogTitle>Excluir {customer?.name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            O cliente e todos os seus contatos serão removidos permanentemente. Pessoas vinculadas a
-            esta empresa serão mantidas, sem vínculo. Esta ação não pode ser desfeita.
+            O cliente, seus contatos, tarefas e histórico de interações serão removidos
+            permanentemente. Pessoas vinculadas a esta empresa serão mantidas, sem vínculo. Esta
+            ação não pode ser desfeita.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

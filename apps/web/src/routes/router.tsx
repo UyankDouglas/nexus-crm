@@ -103,6 +103,12 @@ export const router = createBrowserRouter([
                   Component: (await import('@/pages/app/pipeline-page')).PipelinePage,
                 }),
               },
+              {
+                path: paths.tasks,
+                lazy: async () => ({
+                  Component: (await import('@/pages/app/tasks-page')).TasksPage,
+                }),
+              },
               ...upcomingRoutes,
               {
                 path: paths.settings,

@@ -12,6 +12,7 @@ import type {
   PipelineItem,
 } from '@nexus/shared';
 import { apiClient } from './api-client';
+import { toQueryString } from './query-string';
 
 export interface BoardParams {
   search?: string;
@@ -25,15 +26,6 @@ export interface DealListParams extends BoardParams {
   page: number;
   pageSize: number;
   sort: DealSort;
-}
-
-function toQueryString(params: object): string {
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== '') query.set(key, String(value));
-  }
-  const text = query.toString();
-  return text ? `?${text}` : '';
 }
 
 export const dealService = {

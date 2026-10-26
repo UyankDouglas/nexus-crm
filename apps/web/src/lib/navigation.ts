@@ -37,6 +37,12 @@ export function dealPath(id: string): string {
   return `${paths.pipeline}?${DEAL_PARAM}=${id}`;
 }
 
+/** Parâmetros de URL da página de tarefas: aba ativa e cadastros abertos pela busca global. */
+export const TAB_PARAM = 'aba';
+export const ACTIVITIES_TAB = 'atividades';
+export const NEW_TASK_PARAM = 'novo';
+export const NEW_ACTIVITY_PARAM = 'registrar';
+
 export const mainNavigation: NavigationItem[] = [
   {
     title: 'Dashboard',
@@ -60,15 +66,7 @@ export const mainNavigation: NavigationItem[] = [
     title: 'Tarefas',
     path: paths.tasks,
     icon: ListChecks,
-    description: 'Tarefas, prazos e registro de atividades comerciais.',
-    upcoming: {
-      phase: 4,
-      features: [
-        'Tarefas com responsável, prazo e prioridade',
-        'Registro de chamadas, reuniões e observações',
-        'Vínculo com clientes e negócios',
-      ],
-    },
+    description: 'Tarefas, prazos e o histórico de ligações, reuniões e observações.',
   },
   {
     title: 'Relatórios',

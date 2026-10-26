@@ -44,10 +44,14 @@ export function useDealStats() {
   });
 }
 
-/** Alterações em negócios invalidam quadro, listas, detalhes e indicadores. */
+/** Alterações em negócios invalidam quadro, listas, detalhes, indicadores e o dashboard. */
 function useInvalidateDeals() {
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: queryKeys.deals.all });
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.deals.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all }),
+    ]);
 }
 
 export function useCreateDeal() {
@@ -87,7 +91,15 @@ export function useDeleteDeal(onDeleted?: (id: string) => void) {
     onSuccess: (_data, id) => {
       onDeleted?.(id);
       queryClient.removeQueries({ queryKey: queryKeys.deals.detail(id) });
-      return queryClient.invalidateQueries({ queryKey: queryKeys.deals.all });
+      // Tarefas e atividades do negócio continuam no cliente, sem o vínculo.
+      return Promise.all(
+        [
+          queryKeys.deals.all,
+          queryKeys.tasks.all,
+          queryKeys.activities.all,
+          queryKeys.dashboard.all,
+        ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      );
     },
   });
 }

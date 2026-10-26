@@ -1,5 +1,8 @@
+import type { DateRange } from '@nexus/shared';
+import type { ActivityListParams } from '@/services/activities.service';
 import type { CustomerListParams } from '@/services/customers.service';
 import type { BoardParams, DealListParams } from '@/services/deals.service';
+import type { TaskListParams } from '@/services/tasks.service';
 
 /** Chaves centralizadas do TanStack Query. */
 export const queryKeys = {
@@ -22,5 +25,19 @@ export const queryKeys = {
     list: (params: DealListParams) => ['deals', 'list', params] as const,
     detail: (id: string) => ['deals', 'detail', id] as const,
     stats: ['deals', 'stats'] as const,
+  },
+  tasks: {
+    all: ['tasks'] as const,
+    list: (params: TaskListParams) => ['tasks', 'list', params] as const,
+    stats: ['tasks', 'stats'] as const,
+  },
+  activities: {
+    all: ['activities'] as const,
+    list: (params: ActivityListParams) => ['activities', 'list', params] as const,
+    feed: (params: Omit<ActivityListParams, 'page'>) => ['activities', 'feed', params] as const,
+  },
+  dashboard: {
+    all: ['dashboard'] as const,
+    summary: (range: DateRange) => ['dashboard', range] as const,
   },
 };

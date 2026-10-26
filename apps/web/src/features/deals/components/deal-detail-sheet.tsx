@@ -33,7 +33,11 @@ import {
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Spinner } from '@/components/ui/spinner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ActivityFeed } from '@/features/activities/components/activity-feed';
 import { usePermission } from '@/features/auth/hooks';
+import { TaskPanel } from '@/features/tasks/components/task-panel';
+import { useRetainedValue } from '@/hooks/use-retained-value';
 import {
   daysSince,
   formatCurrency,
@@ -58,10 +62,12 @@ interface DealDetailSheetProps {
 }
 
 export function DealDetailSheet({ dealId, onClose, onEdit }: DealDetailSheetProps) {
+  // Durante a animação de fechamento, o negócio anterior continua visível.
+  const shownId = useRetainedValue(dealId);
   return (
     <Sheet open={dealId !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
-        {dealId && <DealDetailContent dealId={dealId} onClose={onClose} onEdit={onEdit} />}
+        {shownId && <DealDetailContent dealId={shownId} onClose={onClose} onEdit={onEdit} />}
       </SheetContent>
     </Sheet>
   );
@@ -134,6 +140,7 @@ function DealDetailView({
   const lostStage = stages.find((stage) => stage.kind === 'LOST');
   const openStages = stages.filter((stage) => stage.kind === 'OPEN');
   const isOpen = deal.status === 'OPEN';
+  const dealSummary = { id: deal.id, title: deal.title };
   const overdue =
     isOpen && deal.expectedCloseDate !== null && deal.expectedCloseDate < todayIsoDate();
 
@@ -165,109 +172,131 @@ function DealDetailView({
         </SheetDescription>
       </SheetHeader>
 
-      <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
-        {deal.status === 'LOST' && deal.lostReason && (
-          <Alert variant="destructive">
-            <ThumbsDown />
-            <AlertTitle>Motivo da perda</AlertTitle>
-            <AlertDescription>{deal.lostReason}</AlertDescription>
-          </Alert>
-        )}
-        {deal.status === 'WON' && deal.closedAt && (
-          <Alert className="border-success/30 text-success">
-            <Trophy />
-            <AlertTitle>Negócio ganho</AlertTitle>
-            <AlertDescription>Encerrado em {formatDate(deal.closedAt)}.</AlertDescription>
-          </Alert>
-        )}
+      <Tabs defaultValue="resumo" className="min-h-0 flex-1 gap-0">
+        <TabsList variant="line" className="w-full justify-start rounded-none border-b px-4">
+          <TabsTrigger value="resumo" className="flex-none">
+            Resumo
+          </TabsTrigger>
+          <TabsTrigger value="atividades" className="flex-none">
+            Atividades
+          </TabsTrigger>
+          <TabsTrigger value="tarefas" className="flex-none">
+            Tarefas
+          </TabsTrigger>
+        </TabsList>
 
-        <dl className="grid gap-x-6 gap-y-5 text-sm sm:grid-cols-2">
-          <DetailItem label="Valor potencial">
-            <span className="text-base font-semibold tabular-nums">
-              {formatCurrency(deal.value)}
-            </span>
-          </DetailItem>
-          <DetailItem label="Cliente">
-            <Link
-              to={customerPath(deal.customer.id)}
-              onClick={onClose}
-              className="text-primary hover:underline"
-            >
-              {deal.customer.name}
-            </Link>
-          </DetailItem>
-          <DetailItem label="Responsável">
-            {deal.owner?.name ?? (
-              <span className="text-muted-foreground italic">Sem responsável</span>
-            )}
-          </DetailItem>
-          <DetailItem label="Previsão de fechamento">
-            {deal.expectedCloseDate && (
-              <span className={cn(overdue && 'text-destructive')}>
-                {formatIsoDate(deal.expectedCloseDate)}
-                {overdue && ' · atrasado'}
+        <TabsContent value="resumo" className="space-y-6 overflow-y-auto px-6 py-5">
+          {deal.status === 'LOST' && deal.lostReason && (
+            <Alert variant="destructive">
+              <ThumbsDown />
+              <AlertTitle>Motivo da perda</AlertTitle>
+              <AlertDescription>{deal.lostReason}</AlertDescription>
+            </Alert>
+          )}
+          {deal.status === 'WON' && deal.closedAt && (
+            <Alert className="border-success/30 text-success">
+              <Trophy />
+              <AlertTitle>Negócio ganho</AlertTitle>
+              <AlertDescription>Encerrado em {formatDate(deal.closedAt)}.</AlertDescription>
+            </Alert>
+          )}
+
+          <dl className="grid gap-x-6 gap-y-5 text-sm sm:grid-cols-2">
+            <DetailItem label="Valor potencial">
+              <span className="text-base font-semibold tabular-nums">
+                {formatCurrency(deal.value)}
               </span>
-            )}
-          </DetailItem>
-          <DetailItem label={isOpen ? 'Na etapa atual' : 'Encerrado em'}>
-            {isOpen ? (
-              <span title={formatDateTime(deal.stageChangedAt)}>
-                {daysSince(deal.stageChangedAt) === 0
-                  ? 'Desde hoje'
-                  : `Há ${daysSince(deal.stageChangedAt)} ${daysSince(deal.stageChangedAt) === 1 ? 'dia' : 'dias'}`}
+            </DetailItem>
+            <DetailItem label="Cliente">
+              <Link
+                to={customerPath(deal.customer.id)}
+                onClick={onClose}
+                className="text-primary hover:underline"
+              >
+                {deal.customer.name}
+              </Link>
+            </DetailItem>
+            <DetailItem label="Responsável">
+              {deal.owner?.name ?? (
+                <span className="text-muted-foreground italic">Sem responsável</span>
+              )}
+            </DetailItem>
+            <DetailItem label="Previsão de fechamento">
+              {deal.expectedCloseDate && (
+                <span className={cn(overdue && 'text-destructive')}>
+                  {formatIsoDate(deal.expectedCloseDate)}
+                  {overdue && ' · atrasado'}
+                </span>
+              )}
+            </DetailItem>
+            <DetailItem label={isOpen ? 'Na etapa atual' : 'Encerrado em'}>
+              {isOpen ? (
+                <span title={formatDateTime(deal.stageChangedAt)}>
+                  {daysSince(deal.stageChangedAt) === 0
+                    ? 'Desde hoje'
+                    : `Há ${daysSince(deal.stageChangedAt)} ${daysSince(deal.stageChangedAt) === 1 ? 'dia' : 'dias'}`}
+                </span>
+              ) : (
+                deal.closedAt && formatDate(deal.closedAt)
+              )}
+            </DetailItem>
+            <DetailItem label="Cadastrado">
+              <span title={formatDateTime(deal.createdAt)}>
+                {formatDate(deal.createdAt)}
+                {deal.createdBy && ` por ${deal.createdBy.name}`}
               </span>
+            </DetailItem>
+          </dl>
+
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold">Observações</h3>
+            {deal.notes ? (
+              <p className="text-sm whitespace-pre-wrap">{deal.notes}</p>
             ) : (
-              deal.closedAt && formatDate(deal.closedAt)
+              <p className="text-sm text-muted-foreground">Nenhuma observação registrada.</p>
             )}
-          </DetailItem>
-          <DetailItem label="Cadastrado">
-            <span title={formatDateTime(deal.createdAt)}>
-              {formatDate(deal.createdAt)}
-              {deal.createdBy && ` por ${deal.createdBy.name}`}
-            </span>
-          </DetailItem>
-        </dl>
+          </section>
 
-        <section className="space-y-2">
-          <h3 className="text-sm font-semibold">Observações</h3>
-          {deal.notes ? (
-            <p className="text-sm whitespace-pre-wrap">{deal.notes}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">Nenhuma observação registrada.</p>
-          )}
-        </section>
-
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold">Histórico de movimentações</h3>
-          {deal.history.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma movimentação registrada.</p>
-          ) : (
-            <ol className="relative space-y-4 border-l pl-5">
-              {deal.history.map((entry) => {
-                const description = describeHistory(entry);
-                return (
-                  <li key={entry.id}>
-                    <HistoryIcon kind={description.kind} />
-                    <p className="text-sm font-medium">{description.title}</p>
-                    {description.detail && (
-                      <p className="text-xs break-words text-muted-foreground">
-                        {description.detail}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">Histórico de movimentações</h3>
+            {deal.history.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma movimentação registrada.</p>
+            ) : (
+              <ol className="relative space-y-4 border-l pl-5">
+                {deal.history.map((entry) => {
+                  const description = describeHistory(entry);
+                  return (
+                    <li key={entry.id}>
+                      <HistoryIcon kind={description.kind} />
+                      <p className="text-sm font-medium">{description.title}</p>
+                      {description.detail && (
+                        <p className="text-xs break-words text-muted-foreground">
+                          {description.detail}
+                        </p>
+                      )}
+                      <p
+                        className="text-xs text-muted-foreground"
+                        title={formatDateTime(entry.createdAt)}
+                      >
+                        {formatRelative(entry.createdAt)}
+                        {entry.changedBy && ` · ${entry.changedBy.name}`}
                       </p>
-                    )}
-                    <p
-                      className="text-xs text-muted-foreground"
-                      title={formatDateTime(entry.createdAt)}
-                    >
-                      {formatRelative(entry.createdAt)}
-                      {entry.changedBy && ` · ${entry.changedBy.name}`}
-                    </p>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </section>
-      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </section>
+        </TabsContent>
+
+        <TabsContent value="atividades" className="overflow-y-auto px-6 py-5">
+          <ActivityFeed customer={deal.customer} deal={dealSummary} pageSize={6} />
+        </TabsContent>
+
+        <TabsContent value="tarefas" className="overflow-y-auto px-6 py-5">
+          <TaskPanel customer={deal.customer} deal={dealSummary} />
+        </TabsContent>
+      </Tabs>
 
       <SheetFooter className="flex-row flex-wrap justify-between gap-2 border-t px-6 py-4">
         <div className="flex flex-wrap gap-2">

@@ -53,6 +53,13 @@ export function todayIsoDate(now = new Date()): string {
   return new Date(now.getTime() - offset).toISOString().slice(0, 10);
 }
 
+/** Valor para `<input type="datetime-local">` (AAAA-MM-DDTHH:mm, horário local). */
+export function toDateTimeLocal(value: string | Date): string {
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
 const relativeFormatter = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
 const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ['year', 365 * 24 * 60 * 60],

@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   Building2,
   CalendarPlus,
-  Info,
   Pencil,
   RefreshCw,
   SearchX,
@@ -44,7 +43,9 @@ import {
 } from '@/features/customers/components/customer-form-sheet';
 import { DeleteCustomerDialog } from '@/features/customers/components/delete-customer-dialog';
 import { useCustomer } from '@/features/customers/hooks';
+import { ActivityFeed } from '@/features/activities/components/activity-feed';
 import { CustomerDealsCard } from '@/features/deals/components/customer-deals-card';
+import { TaskPanel } from '@/features/tasks/components/task-panel';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { customerPath, paths } from '@/lib/navigation';
@@ -222,6 +223,16 @@ function CustomerDetailView({ customer }: { customer: CustomerDetail }) {
 
           <CustomerDealsCard customer={customer} />
 
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico de interações</CardTitle>
+              <CardDescription>Ligações, reuniões, e-mails e observações</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ActivityFeed customer={customer} />
+            </CardContent>
+          </Card>
+
           <ContactsCard customerId={customer.id} contacts={customer.contacts} />
 
           {isCompany && customer.linkedPeople.length > 0 && (
@@ -266,7 +277,17 @@ function CustomerDetailView({ customer }: { customer: CustomerDetail }) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Histórico</CardTitle>
+              <CardTitle>Tarefas</CardTitle>
+              <CardDescription>Próximos passos combinados com o cliente</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TaskPanel customer={customer} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Cadastro</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <ol className="relative space-y-4 border-l pl-5">
@@ -285,13 +306,6 @@ function CustomerDetailView({ customer }: { customer: CustomerDetail }) {
                   date={customer.createdAt}
                 />
               </ol>
-              <Alert>
-                <Info />
-                <AlertDescription>
-                  O registro de chamadas, reuniões e observações chega na Fase 4 — Tarefas e
-                  atividades.
-                </AlertDescription>
-              </Alert>
             </CardContent>
           </Card>
         </div>

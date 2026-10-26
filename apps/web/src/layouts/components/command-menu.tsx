@@ -1,5 +1,16 @@
 import { formatDocument } from '@nexus/shared';
-import { Building2, Handshake, LogOut, Moon, Plus, Search, Sun, UserRound } from 'lucide-react';
+import {
+  Building2,
+  Handshake,
+  ListPlus,
+  LogOut,
+  MessageSquarePlus,
+  Moon,
+  Plus,
+  Search,
+  Sun,
+  UserRound,
+} from 'lucide-react';
 import { useTheme } from '@/app/theme-provider';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -22,12 +33,16 @@ import { useDeals } from '@/features/deals/hooks';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { formatCurrency } from '@/lib/format';
 import {
+  ACTIVITIES_TAB,
   allNavigation,
   customerPath,
   dealPath,
+  NEW_ACTIVITY_PARAM,
   NEW_CUSTOMER_PARAM,
   NEW_DEAL_PARAM,
+  NEW_TASK_PARAM,
   paths,
+  TAB_PARAM,
 } from '@/lib/navigation';
 
 const MIN_SEARCH_LENGTH = 2;
@@ -186,6 +201,27 @@ export function CommandMenu() {
               >
                 <Plus />
                 <span>Novo negócio</span>
+              </CommandItem>
+              <CommandItem
+                value="nova tarefa prazo"
+                onSelect={() => run(() => void navigate(`${paths.tasks}?${NEW_TASK_PARAM}=1`))}
+              >
+                <ListPlus />
+                <span>Nova tarefa</span>
+              </CommandItem>
+              <CommandItem
+                value="registrar atividade ligação reunião e-mail observação"
+                onSelect={() =>
+                  run(
+                    () =>
+                      void navigate(
+                        `${paths.tasks}?${TAB_PARAM}=${ACTIVITIES_TAB}&${NEW_ACTIVITY_PARAM}=1`,
+                      ),
+                  )
+                }
+              >
+                <MessageSquarePlus />
+                <span>Registrar atividade</span>
               </CommandItem>
               <CommandItem
                 value="alternar tema claro escuro"
