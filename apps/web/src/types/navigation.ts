@@ -1,14 +1,12 @@
+import type { Permission } from '@nexus/shared';
 import type { LucideIcon } from 'lucide-react';
 
 export interface NavigationItem {
   title: string;
   path: string;
   icon: LucideIcon;
-  /** Breve descrição exibida na busca e nas páginas de módulo. */
+  /** Breve descrição exibida na busca global. */
   description: string;
-  /** Módulo ainda não lançado: exibe o selo "Em breve" e a página de roadmap. */
-  upcoming?: {
-    phase: number;
-    features: string[];
-  };
+  /** Permissão exigida para exibir o item (a API valida o acesso de qualquer forma). */
+  permission?: Permission;
 }

@@ -33,6 +33,13 @@ export function usePermission(permission: Permission): boolean {
   return data?.activeOrganization?.permissions.includes(permission) ?? false;
 }
 
+/** Itens de navegação visíveis ao perfil atual (os demais continuam bloqueados pela API). */
+export function useCanSee(): (item: { permission?: Permission }) => boolean {
+  const { data } = useMe();
+  const permissions = data?.activeOrganization?.permissions ?? [];
+  return (item) => !item.permission || permissions.includes(item.permission);
+}
+
 /**
  * Ao trocar de sessão ou organização, descarta todo o cache para que nenhum dado de
  * outra organização permaneça visível.

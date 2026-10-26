@@ -84,4 +84,37 @@ describe('apiClient', () => {
       status: 0,
     });
   });
+
+  it('baixa arquivos com o nome indicado em Content-Disposition', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response('a;b', {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition':
+            'attachment; filename="nexus-crm-revenue-2026-01-01-a-2026-10-26.csv"',
+        },
+      }),
+    );
+    const { apiClient } = await import('./api-client');
+
+    const file = await apiClient.download('/reports/export?type=revenue&format=csv');
+
+    expect(fetchMock.mock.calls[0]![1]?.credentials).toBe('include');
+    expect(file.filename).toBe('nexus-crm-revenue-2026-01-01-a-2026-10-26.csv');
+    expect(await file.blob.text()).toBe('a;b');
+  });
+
+  it('transforma a recusa de uma exportação em ApiError com a mensagem da API', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(403, { statusCode: 403, code: 'FORBIDDEN', message: 'Sem permissão.' }),
+    );
+    const { apiClient } = await import('./api-client');
+
+    await expect(apiClient.download('/reports/export')).rejects.toMatchObject({
+      status: 403,
+      code: 'FORBIDDEN',
+      message: 'Sem permissão.',
+    });
+  });
 });

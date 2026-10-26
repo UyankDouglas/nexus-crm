@@ -2,20 +2,9 @@ import { createBrowserRouter } from 'react-router';
 import { FullPageLoader } from '@/components/full-page-state';
 import { AppLayout } from '@/layouts/app-layout';
 import { AuthLayout } from '@/layouts/auth-layout';
-import { mainNavigation, paths } from '@/lib/navigation';
+import { paths } from '@/lib/navigation';
 import { RouteErrorPage } from '@/pages/route-error-page';
 import { GuestRoute, ProtectedRoute } from './route-guards';
-
-/** Módulos ainda não lançados usam a página de roadmap, sem simular funcionalidades. */
-const upcomingRoutes = mainNavigation
-  .filter((item) => item.upcoming)
-  .map((item) => ({
-    path: item.path,
-    lazy: async () => {
-      const { UpcomingModulePage } = await import('@/pages/app/upcoming-module-page');
-      return { Component: () => <UpcomingModulePage item={item} /> };
-    },
-  }));
 
 export const router = createBrowserRouter([
   {
@@ -53,6 +42,18 @@ export const router = createBrowserRouter([
                 }),
               },
             ],
+          },
+        ],
+      },
+      {
+        // Aceite de convite: acessível com ou sem sessão (o token do link basta).
+        element: <AuthLayout />,
+        children: [
+          {
+            path: paths.invitation,
+            lazy: async () => ({
+              Component: (await import('@/pages/auth/accept-invitation-page')).AcceptInvitationPage,
+            }),
           },
         ],
       },
@@ -109,7 +110,12 @@ export const router = createBrowserRouter([
                   Component: (await import('@/pages/app/tasks-page')).TasksPage,
                 }),
               },
-              ...upcomingRoutes,
+              {
+                path: paths.reports,
+                lazy: async () => ({
+                  Component: (await import('@/pages/app/reports-page')).ReportsPage,
+                }),
+              },
               {
                 path: paths.settings,
                 lazy: async () => ({

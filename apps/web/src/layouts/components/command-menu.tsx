@@ -26,7 +26,7 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command';
-import { useCurrentUser } from '@/features/auth/hooks';
+import { useCanSee, useCurrentUser } from '@/features/auth/hooks';
 import { useSignOut } from '@/features/auth/use-sign-out';
 import { useCustomers } from '@/features/customers/hooks';
 import { useDeals } from '@/features/deals/hooks';
@@ -65,6 +65,7 @@ export function CommandMenu() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const me = useCurrentUser();
+  const canSee = useCanSee();
   const { resolvedTheme, setTheme } = useTheme();
   const { signOut } = useSignOut();
   const [search, setSearch] = useState('');
@@ -172,7 +173,7 @@ export function CommandMenu() {
               </>
             )}
             <CommandGroup heading="Módulos">
-              {allNavigation.map((item) => (
+              {allNavigation.filter(canSee).map((item) => (
                 <CommandItem
                   key={item.path}
                   value={`${item.title} ${item.description}`}
@@ -180,7 +181,6 @@ export function CommandMenu() {
                 >
                   <item.icon />
                   <span>{item.title}</span>
-                  {item.upcoming && <CommandShortcut>Em breve</CommandShortcut>}
                 </CommandItem>
               ))}
             </CommandGroup>

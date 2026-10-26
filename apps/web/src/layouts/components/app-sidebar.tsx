@@ -9,13 +9,13 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { useCanSee } from '@/features/auth/hooks';
 import { mainNavigation, systemNavigation } from '@/lib/navigation';
 import type { NavigationItem } from '@/types/navigation';
 import { OrganizationSwitcher } from './organization-switcher';
@@ -23,13 +23,14 @@ import { OrganizationSwitcher } from './organization-switcher';
 function NavigationGroup({ label, items }: { label: string; items: NavigationItem[] }) {
   const { pathname } = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
+  const canSee = useCanSee();
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="text-sidebar-foreground/50">{label}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => {
+          {items.filter(canSee).map((item) => {
             const isActive = item.path === '/' ? pathname === '/' : pathname.startsWith(item.path);
             return (
               <SidebarMenuItem key={item.path}>
@@ -48,11 +49,6 @@ function NavigationGroup({ label, items }: { label: string; items: NavigationIte
                     <span>{item.title}</span>
                   </NavLink>
                 </SidebarMenuButton>
-                {item.upcoming && (
-                  <SidebarMenuBadge className="rounded-full bg-sidebar-accent px-1.5 text-[10px] font-medium text-sidebar-foreground/80">
-                    Em breve
-                  </SidebarMenuBadge>
-                )}
               </SidebarMenuItem>
             );
           })}

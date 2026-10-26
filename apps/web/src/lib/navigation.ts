@@ -18,6 +18,7 @@ export const paths = {
   customers: '/clientes',
   pipeline: '/funil',
   tasks: '/tarefas',
+  invitation: '/convite',
   reports: '/relatorios',
   settings: '/configuracoes',
 } as const;
@@ -72,15 +73,8 @@ export const mainNavigation: NavigationItem[] = [
     title: 'Relatórios',
     path: paths.reports,
     icon: ChartColumnBig,
-    description: 'Desempenho da equipe, conversão e receita.',
-    upcoming: {
-      phase: 5,
-      features: [
-        'Desempenho por vendedor e taxa de conversão',
-        'Negócios ganhos e perdidos, receita por período',
-        'Exportação em CSV e Excel',
-      ],
-    },
+    description: 'Desempenho da equipe, conversão, receita e exportação em CSV e Excel.',
+    permission: 'reports:read',
   },
 ];
 
@@ -89,7 +83,7 @@ export const systemNavigation: NavigationItem[] = [
     title: 'Configurações',
     path: paths.settings,
     icon: Settings,
-    description: 'Dados da organização, membros e perfis de acesso.',
+    description: 'Organização, membros, convites, funis, permissões e auditoria.',
   },
 ];
 

@@ -100,6 +100,38 @@ async function request<T>(method: HttpMethod, path: string, options?: RequestOpt
   }
 }
 
+export interface DownloadedFile {
+  blob: Blob;
+  filename: string;
+}
+
+/** Baixa um arquivo (GET autenticado por cookie), com o mesmo tratamento de erros da API. */
+async function download(path: string): Promise<DownloadedFile> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { credentials: 'include' });
+  } catch {
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.',
+    );
+  }
+  if (!response.ok) {
+    const body = ((await response.json().catch(() => null)) ?? {}) as Partial<ApiErrorBody>;
+    throw new ApiError(
+      response.status,
+      body.code ?? 'INTERNAL_ERROR',
+      body.message ?? 'Não foi possível gerar o arquivo. Tente novamente.',
+      body.fieldErrors,
+      body.requestId,
+    );
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'relatorio';
+  return { blob: await response.blob(), filename };
+}
+
 export const apiClient = {
   get: <T>(path: string, options?: Omit<RequestOptions, 'body'>) =>
     request<T>('GET', path, options),
@@ -107,4 +139,5 @@ export const apiClient = {
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, { body }),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, { body }),
   delete: <T>(path: string) => request<T>('DELETE', path),
+  download,
 };

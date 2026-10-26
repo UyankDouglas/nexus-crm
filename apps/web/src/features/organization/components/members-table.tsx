@@ -1,4 +1,5 @@
 import type { OrganizationMemberItem } from '@nexus/shared';
+import type { ReactNode } from 'react';
 import { RoleBadge } from '@/components/role-badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -13,13 +14,21 @@ import {
 } from '@/components/ui/table';
 import { formatDateTime, getInitials } from '@/lib/format';
 
+interface MembersTableProps {
+  members: OrganizationMemberItem[];
+  currentUserId: string;
+  /** Substitui o selo de perfil (ex.: seletor de perfil para administradores). */
+  renderRole?: (member: OrganizationMemberItem) => ReactNode;
+  /** Ações por membro, em uma coluna extra. */
+  renderActions?: (member: OrganizationMemberItem) => ReactNode;
+}
+
 export function MembersTable({
   members,
   currentUserId,
-}: {
-  members: OrganizationMemberItem[];
-  currentUserId: string;
-}) {
+  renderRole,
+  renderActions,
+}: MembersTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -28,6 +37,11 @@ export function MembersTable({
           <TableHead>Perfil</TableHead>
           <TableHead className="hidden md:table-cell">Situação</TableHead>
           <TableHead className="hidden text-right lg:table-cell">Último acesso</TableHead>
+          {renderActions && (
+            <TableHead className="w-12">
+              <span className="sr-only">Ações</span>
+            </TableHead>
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -54,7 +68,7 @@ export function MembersTable({
               </div>
             </TableCell>
             <TableCell>
-              <RoleBadge role={member.role} />
+              {renderRole ? renderRole(member) : <RoleBadge role={member.role} />}
             </TableCell>
             <TableCell className="hidden md:table-cell">
               {member.status === 'ACTIVE' ? (
@@ -70,6 +84,7 @@ export function MembersTable({
             <TableCell className="hidden text-right text-muted-foreground lg:table-cell">
               {member.lastLoginAt ? formatDateTime(member.lastLoginAt) : 'Nunca acessou'}
             </TableCell>
+            {renderActions && <TableCell className="text-right">{renderActions(member)}</TableCell>}
           </TableRow>
         ))}
       </TableBody>
