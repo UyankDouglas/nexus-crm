@@ -1,7 +1,10 @@
+import type { ActivityType } from './activities.js';
 import type { BrazilianState, CustomerStatus, CustomerType } from './customers.js';
+import type { Granularity } from './dashboard.js';
 import type { DealStatus, StageKind } from './deals.js';
 import type { Permission } from './permissions.js';
 import type { MemberRole, MembershipStatus } from './roles.js';
+import type { TaskPriority, TaskStatus } from './tasks.js';
 
 export const API_ERROR_CODES = {
   UNAUTHENTICATED: 'UNAUTHENTICATED',
@@ -235,6 +238,99 @@ export interface DealStats {
   lost: { count: number };
   /** Ganhos ÷ (ganhos + perdidos), de 0 a 1; `null` sem negócios encerrados. */
   conversionRate: number | null;
+}
+
+/** Referência curta a um negócio (vínculo de tarefas e atividades). */
+export interface DealSummary {
+  id: string;
+  title: string;
+}
+
+export interface TaskItem {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  /** AAAA-MM-DD */
+  dueDate: string;
+  completedAt: string | null;
+  assignee: UserSummary;
+  customer: CustomerSummary | null;
+  deal: DealSummary | null;
+  createdBy: UserSummary | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskStats {
+  /** A fazer + em andamento. */
+  open: number;
+  overdue: number;
+  dueToday: number;
+  completedLast7Days: number;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: ActivityType;
+  subject: string;
+  description: string | null;
+  occurredAt: string;
+  customer: CustomerSummary;
+  deal: DealSummary | null;
+  author: UserSummary;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SalesBucket {
+  /** Primeiro dia do grupo (AAAA-MM-DD). */
+  start: string;
+  wonCount: number;
+  wonValue: number;
+}
+
+export interface StageSummary {
+  stageId: string;
+  name: string;
+  count: number;
+  value: number;
+}
+
+export interface SellerPerformance {
+  /** `null`: negócios ainda sem responsável. */
+  user: UserSummary | null;
+  wonCount: number;
+  wonValue: number;
+  lostCount: number;
+  openCount: number;
+  openValue: number;
+  /** Ganhos ÷ encerrados no período; `null` sem encerramentos. */
+  conversionRate: number | null;
+}
+
+/**
+ * Painel inicial. Totais de carteira e pipeline são a fotografia atual; resultados, séries e
+ * distribuição consideram o período informado. Tudo respeita o escopo do usuário.
+ */
+export interface DashboardSummary {
+  period: { from: string; to: string; granularity: Granularity };
+  customers: { total: number };
+  pipeline: { openCount: number; openValue: number };
+  results: {
+    wonCount: number;
+    wonValue: number;
+    lostCount: number;
+    conversionRate: number | null;
+  };
+  tasks: { open: number; overdue: number };
+  sales: SalesBucket[];
+  /** Negócios em andamento por etapa do funil padrão. */
+  stages: StageSummary[];
+  sellers: SellerPerformance[];
+  /** Negócios criados no período, pelo status atual. */
+  distribution: { open: number; won: number; lost: number };
 }
 
 export interface HealthResponse {

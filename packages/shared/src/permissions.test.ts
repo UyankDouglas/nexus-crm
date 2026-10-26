@@ -27,7 +27,19 @@ describe('permissões RBAC', () => {
       'deals:read',
       'deals:create',
       'deals:update',
+      'tasks:read',
+      'tasks:create',
+      'tasks:update',
+      'activities:read',
+      'activities:create',
     ]);
+  });
+
+  it('reserva à gestão atribuir tarefas e excluir atividades de outros membros', () => {
+    expect(hasPermission('MANAGER', 'tasks:assign')).toBe(true);
+    expect(hasPermission('SALES', 'tasks:assign')).toBe(false);
+    expect(hasPermission('MANAGER', 'activities:delete')).toBe(true);
+    expect(hasPermission('SALES', 'activities:delete')).toBe(false);
   });
 
   it('reserva a reabertura de negócios encerrados à gestão', () => {
