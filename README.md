@@ -34,9 +34,10 @@ sistema executável ao fim de cada uma.
 Cada organização tem seus próprios usuários, dados e permissões. Um mesmo usuário pode participar
 de várias organizações, com um perfil diferente em cada uma.
 
-> **Status:** as seis fases estão concluídas — Fundação, Clientes e contatos, Negociações e funil
-> de vendas, Dashboard e atividades, Administração e relatórios, e Qualidade e produção (testes
-> E2E, revisão de segurança, CI/CD e deploy em Docker).
+> **Status:** as seis fases do plano inicial estão concluídas — Fundação, Clientes e contatos,
+> Negociações e funil de vendas, Dashboard e atividades, Administração e relatórios, e Qualidade e
+> produção (testes E2E, revisão de segurança, CI/CD e deploy em Docker). Próxima: Fase 7 —
+> Publicação ([roadmap](#-roadmap)).
 
 ## 📸 Telas
 
@@ -586,17 +587,47 @@ A revisão completa, com os achados desta fase e os riscos residuais, está em
 
 ## 🗺 Roadmap
 
-| Fase | Escopo                                                                 | Status       |
-| ---- | ---------------------------------------------------------------------- | ------------ |
-| 1    | Fundação: monorepo, auth, organizações, RBAC, layout, seed, testes, CI | ✅ Concluída |
-| 2    | Clientes e contatos: CRUD, busca, filtros, paginação, permissões       | ✅ Concluída |
-| 3    | Negociações: pipeline, etapas, Kanban com drag-and-drop, histórico     | ✅ Concluída |
-| 4    | Dashboard com indicadores reais, tarefas e atividades                  | ✅ Concluída |
-| 5    | Administração (convites, permissões, pipelines), relatórios, auditoria | ✅ Concluída |
-| 6    | Testes E2E (Playwright), revisão de segurança, CI/CD, deploy e docs    | ✅ Concluída |
+| Fase | Escopo                                                                  | Status       |
+| ---- | ----------------------------------------------------------------------- | ------------ |
+| 1    | Fundação: monorepo, auth, organizações, RBAC, layout, seed, testes, CI  | ✅ Concluída |
+| 2    | Clientes e contatos: CRUD, busca, filtros, paginação, permissões        | ✅ Concluída |
+| 3    | Negociações: pipeline, etapas, Kanban com drag-and-drop, histórico      | ✅ Concluída |
+| 4    | Dashboard com indicadores reais, tarefas e atividades                   | ✅ Concluída |
+| 5    | Administração (convites, permissões, pipelines), relatórios, auditoria  | ✅ Concluída |
+| 6    | Testes E2E (Playwright), revisão de segurança, CI/CD, deploy e docs     | ✅ Concluída |
+| 7    | Publicação: demonstração online, licença e vídeo de apresentação        | ⏳ Próxima   |
+| 8    | Segurança de acesso: login distribuído, 2FA e auditoria de dependências | Planejada    |
+| 9    | Operação: backups automáticos e limpeza de dados expirados              | Planejada    |
+| 10   | Funcionalidades comerciais: metas, tempo real e exportações em fila     | Planejada    |
 
-Próximos passos possíveis, fora do escopo das seis fases: autenticação em dois fatores, metas
-comerciais, notificações em tempo real e exportações em segundo plano com filas.
+### Próximas fases
+
+**Fase 7 — Publicação** · prioridade alta
+
+- Publicar uma **demonstração online** isolada (perfil `demo` do `docker-compose.prod.yml`), com o
+  endereço e as contas fictícias documentados neste README.
+- Definir a **licença** do repositório.
+- Gravar um **vídeo de cerca de 2 minutos** com os fluxos principais, para uma avaliação rápida.
+
+**Fase 8 — Segurança de acesso** · prioridade alta e média
+
+- **Proteção contra tentativas de login distribuídas:** limite por conta (e-mail), com espera
+  progressiva, somado ao limite atual por IP.
+- **Autenticação em dois fatores** (TOTP) para administradores.
+- **Auditoria de dependências no CI:** `pnpm audit` a cada push e em execução agendada, alertando
+  sobre novas vulnerabilidades.
+
+**Fase 9 — Operação** · prioridade média
+
+- **Backup automático** do PostgreSQL, com retenção definida e restauração testada.
+- **Limpeza periódica** de sessões expiradas, tokens de redefinição e convites vencidos, e política
+  de retenção da auditoria (LGPD).
+
+**Fase 10 — Funcionalidades comerciais** · funcionalidades adicionais do plano original
+
+- **Metas comerciais** por vendedor e por equipe, acompanhadas no dashboard.
+- **Notificações em tempo real** (tarefas, convites e movimentações de negócios).
+- **Exportações em segundo plano** com fila de processamento (Redis) para relatórios grandes.
 
 ## 👤 Autor
 
